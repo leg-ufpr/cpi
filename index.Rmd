@@ -37,12 +37,12 @@ output:
      1. Especificação do modelo.
      2. Interações e hipóteses.
      3. Estimação e verificação dos pressupostos.
-  2. Experimentos fatoriais $2^k$
+  2. Experimentos fatoriais $2^k$.
      1. Com repetições.
      2. Sem repetições.
      3. Blocagem com confundimento.
      4. Fracionados.
-  3. Experimentos fatoriais $3^k$
+  3. Experimentos fatoriais $3^k$.
      1. Com repetições.
      2. Sem repetições.
      3. Blocagem com confundimento.
