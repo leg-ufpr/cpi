@@ -1,0 +1,93 @@
+---
+title: >
+  <div class="hidden">EMR<div>
+bibliography: config/refs.bib
+csl: config/ABNT-UFPR-2011-Mendeley.csl
+output:
+  html_document:
+    number_sections: false
+    toc: false
+    includes:
+      before_body: config/header-index.html
+      after_body: config/footer.html
+---
+
+# Informações
+
+  + **Curso:** CE-074 Controle de Processos Industriais.
+  + **Instrutor:** [Walmes Marques Zeviani], (DEST/[LEG]).
+  + **Carga horária**: 60 horas.
+  + **Local e horário:**
+    - Quarta-feira 19h30 - 21h30 · Multimídia.
+    - Sexta-feira 21h30 - 23h30 · Multimídia.
+  + **Moodle**: <https://moodle.c3sl.ufpr.br/course/view.php?id=247>.
+    - Fórum para dúvidas.
+    - Avisos em geral.
+    - Agendamento de provas, trabalhos.
+    - Aplicação das sabatinas.
+  + **Ofertas anteriores**:
+    [2012](http://leg.ufpr.br/~walmes/ensino/ce074-2012-02/),
+    [2017](https://gitlab.c3sl.ufpr.br/walmes/ce074),
+    [2018](http://leg.ufpr.br/~walmes/ensino/CPI/).
+  + [Calendário acadêmico 2019 resumido](http://www.coordest.ufpr.br/wp-content/uploads/2019/03/Calendario-Ilustrado.jpg).
+
+# Conteúdo previsto
+
+  1. Experimentos fatorias gerais.
+     1. Especificação do modelo.
+     2. Interações e hipóteses.
+     3. Estimação e verificação dos pressupostos.
+  2. Experimentos fatoriais $2^k$
+     1. Com repetições.
+     2. Sem repetições.
+     3. Blocagem com confundimento.
+     4. Fracionados.
+  3. Experimentos fatoriais $3^k$
+     1. Com repetições.
+     2. Sem repetições.
+     3. Blocagem com confundimento.
+     4. Fracionados.
+  4. Metododologia de superfície de resposta.
+     1. Modelos de superfície de resposta.
+     2. Delineamento para modelos de superfície de resposta.
+     3. Modelos de mistura.
+
+\*Ordem e prioridade sujeitas a alteração conforme andamento do curso.
+
+# Avaliações
+
+  * ~10 sabatinas semanais.
+  * 2 provas.
+    * 1ª prova: Quarta 18 de Setembro de 2019.
+    * 2ª prova: Quarta 06 de Novembro de 2019.
+  * 1 trabalho: 18/11 a 29/11 de 2019.
+  * Exame final: Terça 11 de Dezembro de 2019.
+
+\*Datas e avalições sujeitas a alteração conforme andamento do curso.
+
+# Referências bibliográficas
+
+```{r, include = FALSE}
+# system("sed '/Url/d' config/refs.bib > config/Refs.bib")
+refs <- system("grep -E '^@[[:alpha:]]+{' config/refs.bib",
+               intern = TRUE)
+refs <- gsub("^@[[:alpha:]]+\\{([[:alnum:]]+),",
+             replacement = "@\\1",
+             x = refs)
+cat(refs, sep = ", ")
+x <- paste(refs, collapse = ", ")
+```
+
+---
+nocite: |
+  `r x`
+...
+
+<!-- Coloca as referências aqui. -->
+<div id="refs">
+</div>
+
+<!-- links -->
+[Walmes Marques Zeviani]: http://leg.ufpr.br/~walmes
+[Paulo Justiniano Ribeiro Jr]: http://leg.ufpr.br/~walmes
+[LEG]: http://www.leg.ufpr.br
