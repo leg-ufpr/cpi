@@ -7,7 +7,7 @@ author:
     www: leg.ufpr.br/~walmes
 date: "Atualizado em `r format(Sys.Date(), format = '%d de %B de %Y')`"
 csl: config/ABNT_UFPR_2011-Mendeley.csl
-bibliography: [config/refs.bib]
+bibliography: [config/refs.bib, ../config/refs.bib]
 github-repo: leg-ufpr/cpi
 description: "Controle de Processos Industriais"
 # site: bookdown::bookdown_site
