@@ -1,0 +1,418 @@
+# Experimentos fatoriais completamente cruzados gerais
+
+Em CE 074 · Controle de Processos Industriais serão estudados os
+experimentos fatoriais com ênfase nos $2^k$ e $3^k$. Todavia, antes de
+partir para esses delineamentos particulares, será visto os experimentos
+fatoriais gerais. Nestes estuda-se $k \geq 2$ fatores simultâneamente,
+cada um com $n_i$ níveis ($i = 1, \ldots, k)$ com todas as combinações
+entre níveis presentes no experimento.
+
+O presente capítulo irá apresentar a análise do experimento fatorial
+duplo ($k = 2$) com fatores qualitativos.
+
+```{r, message = FALSE}
+# Carrega pacotes.
+library(tidyverse)
+```
+
+## Fatorial duplo
+
+Os dados usados nesta seção referem-se àqueles disponíveis em
+@montgomery2008design. O experimento foi feito por um engenheiro que
+estava projetando uma bateria para um dispositivo que estaria sujeito à
+variações extremas de temperatura. Visando projetar uma bateria com
+prolongado tempo de vida, o experimentador escolheu 3 materiais para
+confecção das baterias e nos testes, submeteu as baterias à 3 níveis de
+temperatura para mensurar o tempo de vida, em horas. Cada ponto
+experimental teve 4 repetições. As 36 unidades experimentais foram
+avaliadas em ordem aleatória.
+
+  * Página da editora sobre o livro: <https://www.wiley.com/en-us/Design+and+Analysis+of+Experiments%2C+10th+Edition-p-9781119492443>.
+  * Material suplementar: <http://bcs.wiley.com/he-bcs/Books?action=index&itemId=1119492440&bcsId=11447>.
+
+Na seção a seguir é feita a análise exploratória dos dados.
+
+### Análise exploratória
+
+```{r}
+# Tempo de duração da bateria. Tabela 5.1 em Montgomery (2008).
+tv <- c(130, 74, 150, 159, 138, 168, 155, 180, 188, 126, 110, 160, 34,
+        80, 136, 106, 174, 150, 40, 75, 122, 115, 120, 139, 20, 82, 25,
+        58, 96, 82, 70, 58, 70, 45, 104, 60)
+temp <- rep(c(15, 70, 125), each = 12)
+mate <- rep(rep(c(1:3), each = 2), times = 6)
+
+# Cria tabela com os dados.
+tb <- data.frame(temp = factor(temp),
+                 mate = factor(mate),
+                 tv = tv)
+
+rm(tv, temp, mate)
+
+# Número de repetições dos pontos experimentais.
+xtabs(~mate + temp, data = tb)
+
+ggplot(data = tb,
+       mapping = aes(x = temp, color = mate, y = tv)) +
+    geom_point() +
+    stat_summary(aes(group = mate), geom = "line", fun.y = "mean") +
+    labs(x = "Temperatura (°C)",
+         y = "Tempo de vida (h)",
+         color = "Material")
+
+ggplot(data = tb,
+       mapping = aes(x = mate, color = temp, y = tv)) +
+    geom_point() +
+    stat_summary(aes(group = temp), geom = "line", fun.y = "mean") +
+    labs(x = "Material",
+         y = "Tempo de vida (h)",
+         color = "Temperatura (°C)")
+```
+
+### Especificação e ajuste do modelo
+
+O modelo estatístico para esse experimento, considerando ambos fatores
+como qualitativos e conduzido sob o delineamento inteiramente
+casualizado, é
+$$
+  \begin{aligned}
+    y_{ijk} &\sim \text{Normal}(\mu_{ij}, \sigma^2) \\
+    \mu_{ij} &= \mu + \tau_i + \theta_j + \gamma_{ij}\\
+    \sigma^2 &\propto 1
+  \end{aligned}
+$$
+em que $y_{ijk}$ é o valor observado para o ponto experimental do
+material $i$ e temperatura $j$ na repetição $k$, $\mu$ é uma constante
+inerente à todas as observações, $\tau_i$ são parâmetros para acomodar o
+efeito de material, $\theta_j$ são parâmetros para acomodar o efeito de
+temperatura e $\gamma_{ij}$ são parâmetros para acomodar a interação
+entre material e temperatura.
+
+O código abaixo faz o ajuste do modelo aos dados usando a restrição de
+zerar o efeito do primeiro nível do fator. Portanto, a interpretação dos
+parâmetros está vinculada a essas restrições.
+
+```{r, fig.height = 6}
+# Espeficicação do modelo para a função `lm()`.
+m0 <- lm(tv ~ mate + temp + mate:temp, data = tb)
+m0 <- lm(tv ~ mate * temp, data = tb) # Forma curta.
+
+# Quadro de resumo do ajuste.
+summary(m0)
+
+# Análise gráfica dos pressupostos.
+par(mfrow = c(2, 2)); plot(m0); layout(1)
+```
+
+Os fragmento de código a seguir reproduz o que é retornado pela `lm()`
+com a finalidade de deixar explícitas as contas. As operações matriciais
+são feitas *ipsis litteris* as disponíveis nos livros. Por outro lado,
+não são a forma mais eficiente de implementar.
+
+```{r}
+# Matriz do modelo.
+X <- model.matrix(~mate * temp, data = tb)
+
+# Indica o tipo de contraste usado.
+attr(X, "contrasts")
+
+# Vetor de observações.
+y <- cbind(tb$tv)
+
+# Estimativas dos parâmetros.
+# coef(m0)
+betas <- solve(t(X) %*% X, t(X) %*% y)
+betas
+
+# Variância residual.
+# deviance(m0)/df.residual(m0)
+var_y <- crossprod(y - X %*% betas)/(nrow(X) - ncol(X))
+
+# Matriz de covariância das estimativas.
+# vcov(m0)
+c(var_y) * solve(t(X) %*% X)
+```
+
+Na seção a seguir é obtido o quadro de análise de variância.
+
+### O quadro de análise de variância
+
+O quadro de análise de variância (ANOVA) tem a seguinte composição.
+
+Table: (\#tab:esperanca-quadrados-medios) Esperança dos quadrados médios para o experimento fatorial duplo completo de efeitos fixos.
+
+| FV   | GL               | E(MS)                                                             |
+|:-----|:-----------------|:------------------------------------------------------------------|
+| A    | $a - 1$          | $\sigma^2 + \frac{br \sum_i \tau_i^2}{a - 1}$                     |
+| B    | $b - 1$          | $\sigma^2 + \frac{ar \sum_j \theta_j^2}{b - 1}$                   |
+| AB   | $(a - 1)(b - 1)$ | $\sigma^2 + \frac{r \sum_i \sum_j \gamma_{ij}^2}{(a - 1)(b - 1)}$ |
+| Erro | $ab(r - 1)$      | $\sigma^2$                                                        |
+
+<https://www.jstor.org/stable/2528712?seq=15#metadata_info_tab_contents>.
+
+O quadro de ANOVA pode ser escrito em termos de matriz
+
+Table: (\#tab:esperanca-somas-de-quadrado) Esperança das somas de
+quadrados para o experimento fatorial duplo completo de efeitos
+fixos. $\text{tr()}$ é o operador traço e $.$ deve ser substituido pela
+matriz de projeção indicada na segunda coluna.
+
+| FV   | Matriz de projeção                 | GL             | E(SQ)                                                 | E(MS)                                                          |
+|:-----|:-----------------------------------|:---------------|:------------------------------------------------------|:---------------------------------------------------------------|
+|      |                                    | $\text{tr}(.)$ | $\text{tr}(.)\sigma^2 + \beta^\top X^\top (.) X\beta$ | $\sigma^2 + \frac{\beta^\top X^\top (.) X\beta}{\text{tr}(.)}$ |
+| A    | $H_{\mu:\tau} - H_{\mu}$           |                |                                                       |                                                                |
+| B    | $H_{\mu:\theta} - H_{\mu:\tau}$    |                |                                                       |                                                                |
+| AB   | $H_{\mu:\gamma} - H_{\mu:\theta}$  |                |                                                       |                                                                |
+| Erro | $I - H_{\mu:\gamma}$               |                |                                                       | $\sigma^2$                                                     |
+                                              |
+
+```{r}
+# Quadro de análise de variância.
+anova(m0)
+```
+
+Por meio de expressões com somas de quadrados, que foram aprendidas e
+constantemente usadas em CE 213 · Planejamento de Experimentos I,
+pode-se obter o quadro de análise de variância para experimentos como
+este que é balanceado e de efeitos ortogonais.
+
+As expressões relevantes são
+$$
+  \begin{align*}
+    C &= \frac{y_{...}^2}{abr}\\
+    SS_\text{Total} &= \sum_{i} \sum_{j} \sum_{k} y_{ijk}^2 - C\\
+    SS_A &= \frac{1}{br} \sum_i y_{i..}^2 - C\\
+    SS_B &= \frac{1}{ar} \sum_j y_{.j.}^2 - C\\
+    SS_{A\cap B} &= \frac{1}{r} \sum_i \sum_j y_{ij.}^2 - C\\
+    SS_{AB} &= SS_{A\cap B} - SS_A - SS_B\\
+    SS_{\text{Erro}} &= SS_\text{Total} - SS_{AB} - SS_B - SS_A.
+  \end{align*}
+$$
+
+A notação de ponto no subíndice indica total sob todas as observações,
+ou seja, $y_{i..} = \sum_j \sum_k y_{ijk}$.
+
+```{r}
+# Média dos totais ao quadrado.
+squared_mean <- function(y) sum(y)^2/length(y)
+
+# Resultados das somas de quadrados.
+C <- aggregate(tv ~ 1, data = tb, squared_mean)$tv
+SS_A <- sum(aggregate(tv ~ mate, data = tb, squared_mean)$tv) - C
+SS_B <- sum(aggregate(tv ~ temp, data = tb, squared_mean)$tv) - C
+SS_AiB <- sum(aggregate(tv ~ mate:temp, data = tb, squared_mean)$tv) - C
+SS_AB <- SS_AiB - SS_A - SS_B
+SS_Total <- sum(y^2) - C
+SS_Erro <- SS_Total - SS_A - SS_B - SS_AB
+
+# Somas de quadrados.
+rbind(SS_A, SS_B, SS_AB, SS_Erro)
+```
+
+Apesar das expressões baseadas em somas de quadrados serem muito úteis,
+elas não são apropriadas para experimentos nos quais não se tem
+ortogonalidade entre os efeitos, o que pode acontecer por perda de
+combinações experimentais, perda unidades experimentais, inclusão de
+covariáveis de níveis não controlados e uso de confundimento, por
+exemplo. Para lidar com essas situações pode-se obter as somas de
+quadrados com operações matriciais baseadas em matrizes de projeção.
+
+Na realidade, as expressões com somas de quadrados são de fato a
+simplificação algébrica das equivalentes expressões matriciais.
+
+A vantagem é que com o uso das matrizes de projeção é possível
+contemplar a interpretação geométrica do método de mínimos quadrados,
+além de permitir acomodar experimentos de estrutura irregular.
+
+As somas de quadrados são o comprimento do vetor resultante da projeção
+do vetor das observações em um subespaço linear definido pelas colunas
+da matriz do modelo. A matriz de projeção é obtida por meio da matriz de
+delineamento ou matriz do modelo
+$$
+  H = X (X^\top X)^{-1} X^\top.
+$$
+
+Considere que a matriz do modelo foi particinada criando uma sequência
+de matrizes em que a seguinte tem o conjunto de colunas que acomoda um
+termo não contido na precedente. Colocando de outra forma, essa
+sequência de matrizes corresponde aos modelos
+$$
+\begin{aligned}
+\mu_{ij} = \mu \quad \Rightarrow &\quad X_{\mu} \\
+\mu_{ij} = \mu + \tau_i \quad \Rightarrow &\quad X_{\mu:\tau} \\
+\mu_{ij} = \mu + \tau_i + \theta_j \quad \Rightarrow &\quad X_{\mu:\theta} \\
+\mu_{ij} = \mu + \tau_i + \theta_j + \gamma_{ij} \quad \Rightarrow &\quad X_{\mu:\gamma},
+\end{aligned}
+$$
+portanto, o operador $:$ no subíndice indica o intervalo de parâmetros
+cujas colunas estão na matriz.
+
+Será útil para demonstrações as matrizes correspondentes aos modelos
+\begin{aligned}
+\mu_{ij} = \mu + \tau_i \quad \Rightarrow &\quad X_{\mu,\tau} \\
+\mu_{ij} = \mu + \theta_j \quad \Rightarrow &\quad X_{\mu,\theta} \\
+\mu_{ij} = \mu + \gamma_{ij} \quad \Rightarrow &\quad X_{\mu,\gamma}.
+\end{aligned}
+
+Formas quadráticas usando as matrizes de projeção retornam as somas de
+quadrados. O grau de liberdade corresponde ao traço da matriz usada para
+obter as somas de quadrados. As matrizes de projeção, mantendo a sequência de modelos, são
+$$
+\begin{aligned}
+H_{\mu} &= X_{\mu} (X_{\mu}^\top X_{\mu})^{-1} X_{\mu}^\top\\
+H_{\mu:\tau} &= X_{\mu:\tau} (X_{\mu:\tau}^\top X_{\mu:\tau})^{-1} X_{\mu:\tau}^\top\\
+H_{\mu:\theta} &= X_{\mu:\theta} (X_{\mu:\theta}^\top X_{\mu:\theta})^{-1} X_{\mu:\theta}^\top\\
+H_{\mu:\gamma} &= X_{\mu:\gamma} (X_{\mu:\gamma}^\top X_{\mu:\gamma})^{-1} X_{\mu:\gamma}^\top.
+\end{aligned}
+$$
+
+Dessa forma, as somas de quadrados são obtidas por
+$$
+\begin{aligned}
+C &= y^\top H_{\mu} y\\
+SS_A &= y^\top (H_{\mu:\tau} - H_{\mu}) y  = y^\top (H_{\mu:\tau}) y - y^\top (H_{\mu}) y\\
+SS_B &= y^\top (H_{\mu:\theta} - H_{\mu:\tau}) y \\
+     &= y^\top (H_{\mu,\theta} - H_{\mu}) y \quad \text{ pois }\quad (H_{\mu,\theta} - H_{\mu}) \perp (H_{\mu,\tau} - H_{\mu})\\
+SS_{AB} &= y^\top (H_{\mu:\gamma} - H_{\mu:\theta}) y \\
+        &= y^\top (H_{\mu,\gamma} - H_{\mu}) y \quad \text{ pois }\quad (H_{\mu,\gamma} - H_{\mu}) \perp (H_{\mu,\theta} - H_{\mu})\\
+SS_{\text{Erro}} &= y^\top (I - H_{\mu:\gamma}) y. \\
+\end{aligned}
+$$
+
+O código a seguir calcula as somas de quadrados conforme indicado pelas
+expressões acima.
+
+```{r}
+X <- model.matrix(~mate * temp,
+                  data = tb,
+                  contrasts.arg = list(mate = contr.sum,
+                                       temp = contr.sum))
+
+proj <- function(X) {
+    X %*% solve(crossprod(X), t(X))
+}
+
+a <- attr(X, "assign")
+a
+
+I <- diag(length(y))
+H0  <- proj(X[, a <= 0])
+H01 <- proj(X[, a <= 1])
+H02 <- proj(X[, a <= 2])
+H03 <- proj(X[, a <= 3])
+
+# Somas de quadrados sequênciais.
+t(y) %*% (H0)        %*% y # C:       RSS(~1) - RSS(~0).
+t(y) %*% (H01 - H0)  %*% y # SS_A:    RSS(~A) - RSS(~1).
+t(y) %*% (H02 - H01) %*% y # SS_B:    RSS(~A + B) - RSS(~A).
+t(y) %*% (H03 - H02) %*% y # SS_AB:   RSS(~A * B) - RSS(~A + B).
+t(y) %*% (I   - H03) %*% y # SS_Erro.
+
+anova(m0)
+
+# Como os efeitos são ortogonais, sequêncial e um termo por vez dá
+# igual.
+H1 <- proj(X[, a %in% c(0, 1)])
+H2 <- proj(X[, a %in% c(0, 2)])
+H3 <- proj(X[, a %in% c(0, 3)])
+
+# Somas de quadrados de um termo de cada vez.
+# ATTENTION: Para funcionar tem que usar restrições lineares ortogonais,
+# i.e. `contr.sum`, `contr.helmert` ou `contr.poly`.
+t(y) %*% (H1 - H0) %*% y # SS_A:  RSS(~A) - RSS(~1).
+t(y) %*% (H2 - H0) %*% y # SS_B:  RSS(~B) - RSS(~1).
+t(y) %*% (H3 - H0) %*% y # SS_AB: RSS(~A:B) - RSS(~1).
+
+# Mostra que as projeções são ortogonais.
+all(round((H1 - H0) %*% (H2 - H0), digits = 4) == 0)
+
+trace <- function(H) {
+    sum(diag(H))
+}
+
+# Graus de liberdade.
+trace(H0)
+trace(H01 - H0)
+trace(H02 - H01)
+trace(H03 - H02)
+trace(I   - H03)
+```
+
+### Estudo da interação
+
+Quando ocorre interação é porque a predição (média) não é função apenas
+dos efeitos principais dos fatores. Colocando de outra forma, a
+interação dupla entre os fatores material e temperatura indica que a
+diferência em tempo médio de vida da bateria entre dois níveis de
+temperatura depende do nível de material. O oposto também é verdadeiro,
+as diferenças entre material mudam com o nível de temperatura.
+
+O fragmento abaixo usa o pacote `emmeans` (*estimated marginal means*)
+para obter as médias de duração de bateria para cada ponto experimental.
+
+```{r}
+library(emmeans)
+
+# Médias marginais ajustadas = valores preditos para cada ponto
+# experimental.
+emm <- emmeans(m0, specs = ~temp | mate)
+emm
+
+attr(emm, "grid")
+unname(attr(emm, "linfct"))
+
+# Constrastes entre níveis de temperatura para cada nível de material.
+contrast(emm, method = "pairwise")
+```
+
+No fragmento a seguir são obtidas as médias ajustadas, o seu erro
+padrão, o contraste entre duas médias e o erro padrão.
+
+```{r}
+# Estimativas das médias ajustadas.
+Xu <- unique(model.matrix(m0))
+Xu %*% coef(m0)
+
+# Erro padrão das médias.
+sqrt(diag(Xu %*% vcov(m0) %*% t(Xu)))
+
+# O erro padrão é \sqrt{\hat{\sigma}^2/r}.
+sqrt((deviance(m0)/df.residual(m0))/4)
+
+grid <- unique(m0$model[, all.vars(m0$terms)[-1]])
+cbind(grid, "." = "|", unname(Xu))
+
+# Contraste `temp@15 - temp@70 | mate@1`.
+K <- Xu[1,, drop = FALSE] - Xu[4,, drop = FALSE]
+
+K %*% coef(m0)                      # Estimativa.
+sqrt(diag(K %*% vcov(m0) %*% t(K))) # Erro padrão.
+```
+
+
+```{r}
+tbm <- as.data.frame(emm)
+tbm
+
+gg1 <-
+ggplot(tbm, aes(x = temp, y = emmean)) +
+    facet_wrap(facets = ~mate) +
+    geom_point() +
+    geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL),
+                  width = 0.05) +
+    labs(x = "Temperatura (°C)",
+         y = "Tempo de vida (h)")
+
+gg2 <-
+ggplot(tbm, aes(x = mate, y = emmean)) +
+    facet_wrap(facets = ~temp) +
+    geom_point() +
+    geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL),
+                  width = 0.05) +
+    labs(x = "Material",
+         y = "Tempo de vida (h)")
+
+gridExtra::grid.arrange(gg1, gg2, ncol = 1)
+```
+
+## Fatorial triplo
