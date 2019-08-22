@@ -12,6 +12,7 @@ duplo ($k = 2$) com fatores qualitativos.
 
 ```{r, message = FALSE}
 # Carrega pacotes.
+library(emmeans)
 library(tidyverse)
 ```
 
@@ -47,6 +48,7 @@ tb <- data.frame(temp = factor(temp),
                  mate = factor(mate),
                  tv = tv)
 
+# Remove vetores do espaço de memória.
 rm(tv, temp, mate)
 
 # Número de repetições dos pontos experimentais.
@@ -351,8 +353,6 @@ O fragmento abaixo usa o pacote `emmeans` (*estimated marginal means*)
 para obter as médias de duração de bateria para cada ponto experimental.
 
 ```{r}
-library(emmeans)
-
 # Médias marginais ajustadas = valores preditos para cada ponto
 # experimental.
 emm <- emmeans(m0, specs = ~temp | mate)
@@ -416,3 +416,508 @@ gridExtra::grid.arrange(gg1, gg2, ncol = 1)
 ```
 
 ## Fatorial triplo
+
+Para exemplificar a análise do experimento fatorial triplo, será
+considerado os dados em @montgomery2008design. O contexto do experimento
+está descrito a seguir.
+
+Um fabricante de refrigerante está interessado em obter volumes de
+enchimento mais uniformes nas garrafas produzidas por seu processo de
+fabricação. A máquina de envase teoricamente preenche cada garrafa com o
+volume alvo correta, mas, na prática, há variação em torno desse alvo, e
+o fabricante gostaria de entender melhor as fontes dessa variabilidade
+e, eventualmente, reduzi-las. O engenheiro de processo pode controlar
+três variáveis ​​durante o processo de enchimento: a porcentagem de
+carbonatação (A), a pressão operacional no enchimento (B) e as garrafas
+produzidas por minuto ou a velocidade da linha (C). A pressão e a
+velocidade são fáceis de controlar, mas a porcentagem de carbonatação é
+mais difícil de controlar durante a fabricação real porque varia com a
+temperatura do produto. No entanto, para fins de um experimento, o
+engenheiro pode controlar a carbonatação em três níveis: 10, 12 e 14 por
+cento. Ela escolheu dois níveis de pressão (25 e 30 psi) e dois níveis
+de velocidade de linha (200 e 250 bpm). Ele decidiu executar duas
+réplicas de um planejamento fatorial nesses três fatores, com todas as
+24 tiradas em ordem aleatória. A variável de resposta observada é o
+desvio médio da altura de enchimento alvo observada em uma corrida de
+produção de garrafas em cada conjunto de condições. Os dados que
+resultaram deste experimento são recriados no código abaixo. Desvios
+positivos são volumes de preenchimento acima do alvo, enquanto desvios
+negativos são volumes de preenchimento abaixo do alvo.
+
+(ref:bottling-line) Ilustração do processo de enchimento das garrafas
+indicando os fatores que influenciam o volume de enchimento que estão
+sob investigação: carbonação, pressão e velocidade.
+
+```{r, echo = FALSE, out.width = "276px", fig.cap = '(ref:bottling-line)'}
+knitr::include_graphics("./img/bottling-line.png")
+```
+
+### Análise exploratória
+
+Os gráficos a seguir tem a finalidade de
+
+  * Inspecionar a variável resposta em relação a valores atípicos.
+  * Antecipar a existência de efeito principal dos fatores.
+  * Antecipar a existência de interações entre os fatores.
+
+```{r}
+# Recria os dados.
+da <- data.frame(carb = rep(rep(c(10, 12, 14), each = 2), times = 4),
+                 pres = rep(c(25, 30), each = 12),
+                 velo = rep(c(200, 250, 200, 250), each = 6))
+da$dsv <- c(-3, -1, 0, 1, 5, 4,
+            -1, 0, 2, 1, 7, 6,
+            -1, 0, 2, 3, 7, 9,
+            1, 1, 6, 5, 10, 11)
+str(da)
+
+# Repetições dos pontos experimentais.
+ftable(xtabs(~pres + velo + carb, data = da))
+
+ggplot(data = da,
+       mapping = aes(x = carb, y = dsv)) +
+    facet_grid(facets = pres ~ velo) +
+    geom_point() +
+    stat_summary(geom = "line", fun.y = "mean") +
+    labs(x = "Carbonação (%)", y = "Desvio de enchimento")
+
+ggplot(data = da,
+       mapping = aes(x = pres, y = dsv, color = carb)) +
+    facet_wrap(facets = ~ velo) +
+    geom_point() +
+    stat_summary(mapping = aes(group = carb),
+                 geom = "line", fun.y = "mean") +
+    labs(x = "Pressão", y = "Desvio de enchimento",
+         color = "Carbonação (%)")
+```
+
+Com base na leitura dos gráficos, conclui-se haver pouca evidência
+visual para existência de interações. Por outro lado, espera-se que haja
+efeito principal, especialmente para carbonação.
+
+### Especificação e ajuste do modelo
+
+O modelo para o experimento, considerando momentaneamente que todos os
+fatores são qualitativos, é
+$$
+  \begin{aligned}
+    y_{ijkl} &\sim \text{Normal}(\mu_{ijk}, \sigma^2) \\
+    \mu_{ijk} &= \mu + \alpha_i + \beta_j + \gamma_k +
+      \theta_{ij} + \tau_{ik} + \psi_{jk} + \lambda_{ijk}\\
+    \sigma^2 &\propto 1,
+  \end{aligned}
+$$
+em que $y_{ijkl}$ é o valor observado para o ponto experimental da
+carbonação $i$, pressão $j$, velocidade $k$ na repetição $l$, $\mu$ é
+uma constante inerente à todas as observações, $\alpha_i$ são parâmetros
+para acomodar o efeito de carbonação, $\beta_j$ são parâmetros para
+acomodar o efeito de pressão, $\gamma_k$ são parâmetros para acomodar o
+efeito da velocidade. Os demais parâmetros acomodam o efeito de
+interações duplas e a interação tripla.
+
+Como as variáveis são todas quantitativas, poderia-se, sem prejuízo
+algum, espeficicar um modelo de efeito para níveis quantitativos usando
+polinômios. O modelo abaixo é uma alternativa ao anterior que
+apresentará a mesma qualidade de ajuste visto que é um modelo linear nos
+parâmetros de mesmo tamanho, ou seja, mesma quantidade de parâmetros. O preditor será
+$$
+  \begin{aligned}
+    \mu_{ijk} &= \mu \\
+      &+ \alpha_1\cdot\text{carb} + \alpha_2\cdot\text{carb}^2 \\
+      &+ \beta_1\cdot\text{pres} \\
+      &+ \gamma_1\cdot\text{velo} \\
+      &+ \theta_{11}\cdot\text{carb}\cdot\text{pres} +
+         \theta_{21}\cdot\text{carb}^2\cdot\text{pres}\\
+      &+ \tau_{11}\cdot\text{carb}\cdot\text{velo} +
+         \tau_{21}\cdot\text{carb}^2\cdot\text{velo}\\
+      &+ \psi_{11}\cdot\text{pres}\cdot\text{velo}\\
+      &+ \lambda_{111}\cdot\text{carb}\cdot\text{pres}\cdot\text{velo} +
+         \lambda_{211}\cdot\text{carb}^2\cdot\text{pres}\cdot\text{velo}\\
+  \end{aligned}
+$$
+em que todos os fatores são descritos por um termo linear e a carbonação
+que possui 3 níveis, tem o termo quadrático. As interações são produtos
+dos termos que acomodam os efeitos principais dos três
+fatores. Manteve-se as mesmas letras gregas, porém, a interpretação dos
+parâmetros agora é em termos de coeficientes de regressão.
+
+```{r, fig.height = 6}
+# Cria cópia dos fatores como qualitativos.
+da <- transform(da,
+                Carb = factor(carb),
+                Pres = factor(pres),
+                Velo = factor(velo))
+
+# Modelo com interações até 3 grau.
+m0 <- lm(dsv ~ Carb * Pres * Velo, data = da)
+
+deviance(m0)
+deviance(lm(dsv ~ (carb + I(carb^2)) * pres * velo, data = da))
+
+# Diagnóstico sobre os pressupostos.
+par(mfrow = c(2, 2))
+plot(m0)
+layout(1)
+
+summary(m0)
+```
+
+### Quadro de análise de variância
+
+O quadro de análise de variância indica não haver efeito da interação
+tripla. Com isso, na análise das interações duplas não aponta existência
+de efeito relevante (à 5%).
+
+```{r}
+# Quadro de análise de variância.
+anova(m0)
+```
+
+As expressões de somatório para as somas de quadradas apresentadas na
+sessão anterior podem ser adaptadas para o caso de experimento fatorial
+triplo. O código abaixo computa as somas de quadrados.
+
+```{r}
+# Média dos totais ao quadrado.
+squared_mean <- function(y) sum(y)^2/length(y)
+
+# Resultados das somas de quadrados.
+C <- aggregate(dsv ~ 1, data = da, squared_mean)$dsv
+SS_A <- sum(aggregate(dsv ~ Carb, data = da, squared_mean)$dsv) - C
+SS_B <- sum(aggregate(dsv ~ Pres, data = da, squared_mean)$dsv) - C
+SS_C <- sum(aggregate(dsv ~ Velo, data = da, squared_mean)$dsv) - C
+
+SS_AiB <- sum(aggregate(dsv ~ Carb:Pres, data = da,
+                        squared_mean)$dsv) - C
+SS_AB <- SS_AiB - SS_A - SS_B
+
+SS_AiC <- sum(aggregate(dsv ~ Carb:Velo, data = da,
+                        squared_mean)$dsv) - C
+SS_AC <- SS_AiC - SS_A - SS_C
+
+SS_BiC <- sum(aggregate(dsv ~ Pres:Velo, data = da,
+                        squared_mean)$dsv) - C
+SS_BC <- SS_BiC - SS_B - SS_C
+
+SS_AiBiC <- sum(aggregate(dsv ~ Carb:Pres:Velo, data = da,
+                          squared_mean)$dsv) - C
+SS_ABC <- SS_AiBiC - SS_A - SS_B - SS_C - SS_AB - SS_AC - SS_BC
+
+SS_Total <- sum(da$dsv^2) - C
+SS_Erro <- SS_Total - SS_AiBiC
+
+# Somas de quadrados.
+rbind(SS_A, SS_B, SS_AB,
+      SS_AB, SS_AC, SS_BC,
+      SS_ABC,
+      SS_Erro)
+```
+
+### Médias ajustadas
+
+As médias ajustadas são os valores preditos para cada ponto
+experimental. Todavia, como não há interação, pode-se obter as médias
+marginais ajustadas. Elas são médias para os níveis de um fator
+ponderando ou marginalizando o efeito dos demais fatores. Por exemplo,
+por meio dos coeficientes estimados do modelo de regressão, a média
+marginal ajustada para os níveis de carbonação é
+$$
+\begin{aligned}
+\hat{\mu}_\text{A} &= L_{\text{A}} \hat{\beta} \\
+\begin{bmatrix}
+  \hat{\mu}_{1..}\\
+  \hat{\mu}_{2..}\\
+  \hat{\mu}_{3..}\\
+\end{bmatrix} &=
+\begin{bmatrix}
+  1 & 0 & 0 & 1/2 & 1/2 & 0 & 0 & 0 & 0 & 1/4 & 0 & 0 \\
+  1 & 1 & 0 & 1/2 & 1/2 & 1/2 & 0 & 1/2 & 0 & 1/4 & 1/4 & 0 \\
+  1 & 0 & 1 & 1/2 & 1/2 & 0 & 1/2 & 0 & 1/2 & 1/4 & 0 & 1/4 \\
+\end{bmatrix}
+\begin{bmatrix}
+  \hat{\mu}\\
+  \hat{\alpha}_2\\
+  \hat{\alpha}_3\\
+  \hat{\beta}_2\\
+  \hat{\gamma}_2\\
+  \hat{\theta}_{22}\\
+  \hat{\theta}_{32}\\
+  \hat{\tau}_{22}\\
+  \hat{\tau}_{32}\\
+  \hat{\psi}_{22}\\
+  \hat{\lambda}_{222}\\
+  \hat{\lambda}_{322}\\
+\end{bmatrix}.
+\end{aligned}
+$$
+
+O pacote `emmeans` permite obter as médias marginais para uma ampla
+classe de modelos. O pacote constrói a matriz $L$ conforme uso do
+argumento `specs`. A vantagem é que ela considera o tipo de contraste
+que foi usado para solucionar o problema de mínimos quadrados.
+
+<!-- .
+$$
+\begin{aligned}
+  \hat{y}_{1..} & = 1\hat{\mu}\\
+ &\quad + 0\cdot\hat{\alpha_2} +
+          0\cdot\hat{\alpha_3} \\
+ &\quad + 0.5\cdot\frac{\hat{\beta}_2}{2} \\
+ &\quad + 0.5\cdot\frac{\hat{\gamma}_2}{2} \\
+ &\quad + 0\cdot\frac{\hat{\theta}_{22}}{4} +
+          0\cdot\frac{\hat{\theta}_{32}}{4}\\
+ &\quad + 0\cdot\frac{\hat{\tau}_{22}}{2} +
+          0\cdot\frac{\hat{\tau}_{32}}{2}\\
+ &\quad + 0.25\cdot\frac{\hat{\psi}_{22}}{2}\\
+ &\quad + 0\cdot\frac{\hat{\lambda}_{222}}{2} +
+          0\cdot\frac{\hat{\lambda}_{322}}{2}
+\end{aligned}
+$$
+
+$$
+\begin{aligned}
+  \hat{y}_{2..} & = 1\hat{\mu}\\
+ &\quad + 1\cdot\hat{\alpha_2} +
+          0\cdot\hat{\alpha_3} \\
+ &\quad + 0.5\cdot\frac{\hat{\beta}_2}{2} \\
+ &\quad + 0.5\cdot\frac{\hat{\gamma}_2}{2} \\
+ &\quad + 0.5\cdot\frac{\hat{\theta}_{22}}{4} +
+          0\cdot\frac{\hat{\theta}_{32}}{4}\\
+ &\quad + 0.5\cdot\frac{\hat{\tau}_{22}}{2} +
+          0\cdot\frac{\hat{\tau}_{32}}{2}\\
+ &\quad + 0.25\cdot\frac{\hat{\psi}_{22}}{2}\\
+ &\quad + 0.25\cdot\frac{\hat{\lambda}_{222}}{2} +
+          0\cdot\frac{\hat{\lambda}_{322}}{2}\\
+\end{aligned}
+$$
+
+$$
+\begin{aligned}
+  \hat{y}_{3..} & = 1\hat{\mu}\\
+ &\quad + 0\cdot\hat{\alpha_2} +
+          1\cdot\hat{\alpha_3} \\
+ &\quad + 0.5\cdot\frac{\hat{\beta}_2}{2} \\
+ &\quad + 0.5\cdot\frac{\hat{\gamma}_2}{2} \\
+ &\quad + 0\cdot\frac{\hat{\theta}_{22}}{4} +
+          0.5\cdot\frac{\hat{\theta}_{32}}{4}\\
+ &\quad + 0\cdot\frac{\hat{\tau}_{22}}{2} +
+          0.5\cdot\frac{\hat{\tau}_{32}}{2}\\
+ &\quad + 0.25\cdot\frac{\hat{\psi}_{22}}{2}\\
+ &\quad + 0\cdot\frac{\hat{\lambda}_{222}}{2} +
+          0.25\cdot\frac{\hat{\lambda}_{322}}{2}\\
+\end{aligned}
+$$
+-->
+
+```{r}
+# Médias marginais ajustas para o efeito principal de carbonação.
+emm <- emmeans(m0, specs = ~Carb)
+emm
+
+MASS::fractions(attr(emm, "linfct"))
+attr(emm, "linfct") %*% coef(m0)
+
+contrast(emm, method = "pairwise")
+```
+```{r, eval = FALSE, include = FALSE}
+library(xtable)
+u <- MASS::fractions(attr(emm, "linfct"))
+print.xtable(xtable(as.character(u)),
+             only.contents = TRUE,
+             include.rownames = FALSE)
+```
+
+As médias marginais para o efeito de pressão são obtidas com a seguinte
+função linear das estimativas dos parâmetros
+$$
+\begin{aligned}
+\hat{\mu}_\text{B} &= L_{\text{B}} \hat{\beta} \\
+\begin{bmatrix}
+  \hat{\mu}_{.1.}\\
+  \hat{\mu}_{.2.}\\
+\end{bmatrix} &=
+\begin{bmatrix}
+  1 & 1/3 & 1/3 & 0 & 1/2 & 0 & 0 & 1/6 & 1/6 & 0 & 0 & 0 \\
+  1 & 1/3 & 1/3 & 1 & 1/2 & 1/3 & 1/3 & 1/6 & 1/6 & 1/2 & 1/6 & 1/6 \\
+\end{bmatrix}
+\begin{bmatrix}
+  \hat{\mu}\\
+  \hat{\alpha}_2\\
+  \hat{\alpha}_3\\
+  \hat{\beta}_2\\
+  \hat{\gamma}_2\\
+  \hat{\theta}_{22}\\
+  \hat{\theta}_{32}\\
+  \hat{\tau}_{22}\\
+  \hat{\tau}_{32}\\
+  \hat{\psi}_{22}\\
+  \hat{\lambda}_{222}\\
+  \hat{\lambda}_{322}\\
+\end{bmatrix}.
+\end{aligned}
+$$
+
+Esteja ciente de que a matriz $L_{B}$ que prémultiplica os parâmetros
+estimados está vínculada ao tipo de restrição paramétrica
+considerada. Nesta análise foi usado o contraste de tratamento
+(`contr.treatment`) que é o padrão do R. Se for usada outra restrição
+paramétrica, a matriz $L_{*}$ será diferente mas as médias marginais
+ainda serão as mesmas porque elas são invariantes à parametrização
+adotada. A função `emmeans()` já considera o tipo de contraste na hora
+de construir a matriz de funções lineares.
+
+```{r}
+# Médias marginais ajustas para o efeito principal de pressão.
+emm <- emmeans(m0, specs = ~Pres)
+emm
+
+contrast(emm, method = "pairwise")
+```
+```{r, eval = FALSE, include = FALSE}
+library(xtable)
+u <- MASS::fractions(attr(emm, "linfct"))
+print.xtable(xtable(as.character(u)),
+             only.contents = TRUE,
+             include.rownames = FALSE)
+```
+
+As médias marginais para o efeito de velocidade são obtidas com a
+seguinte função linear das estimativas dos parâmetros
+$$
+\begin{aligned}
+\hat{\mu}_\text{C} &= L_{\text{C}} \hat{\beta} \\
+\begin{bmatrix}
+  \hat{\mu}_{..1}\\
+  \hat{\mu}_{..2}\\
+\end{bmatrix} &=
+\begin{bmatrix}
+  1 & 1/3 & 1/3 & 1/2 & 0 & 1/6 & 1/6 & 0 & 0 & 0 & 0 & 0 \\
+  1 & 1/3 & 1/3 & 1/2 & 1 & 1/6 & 1/6 & 1/3 & 1/3 & 1/2 & 1/6 & 1/6 \\
+\end{bmatrix}
+\begin{bmatrix}
+  \hat{\mu}\\
+  \hat{\alpha}_2\\
+  \hat{\alpha}_3\\
+  \hat{\beta}_2\\
+  \hat{\gamma}_2\\
+  \hat{\theta}_{22}\\
+  \hat{\theta}_{32}\\
+  \hat{\tau}_{22}\\
+  \hat{\tau}_{32}\\
+  \hat{\psi}_{22}\\
+  \hat{\lambda}_{222}\\
+  \hat{\lambda}_{322}\\
+\end{bmatrix}.
+\end{aligned}
+$$
+
+```{r}
+# Médias marginais ajustas para o efeito principal de velocidade.
+emm <- emmeans(m0, specs = ~Velo)
+emm
+
+contrast(emm, method = "pairwise")
+```
+```{r, eval = FALSE, include = FALSE}
+library(xtable)
+u <- MASS::fractions(attr(emm, "linfct"))
+print.xtable(xtable(as.character(u)),
+             only.contents = TRUE,
+             include.rownames = FALSE)
+```
+
+Como o objetivo do fabricante é determinar a condição de operação que
+mais se aproxime do volume de enchimento alvo, no código a seguir são
+determinadas as médias para cada ponto experimental com o modelo
+saturado `m0`.
+
+```{r}
+# Médias de todos os pontos experimentais considerando o modelo maximal.
+emm <- emmeans(m0, specs = ~Carb + Pres + Velo) %>%
+    as.data.frame()
+
+emm %>%
+    arrange(emmean)
+
+ps <- position_dodge(0.2)
+ggplot(emm, aes(x = Carb, y = emmean, color = Pres, group = Pres)) +
+    facet_wrap(facets = ~Velo) +
+    geom_point(position = ps) +
+    geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL),
+                  position = ps,
+                  width = 0.05) +
+    labs(x = "Carbonação (%)",
+         y = "Desvio de volume de enchimento",
+         color = "Pressão (psi)")
+```
+
+As médias ajustadas com o modelo saturado estão considerando termos do
+modelo que, pelo quadro de análise de variância, não tem efeito
+relevante. Dessa forma, um modelo mais simples, obtido pelo abandono dos
+termos irrelevantes, pode ser ajustado. As médias ajustadas com esse
+modelo mais simples não deverão distânciar substancialmente do modelo
+maximal, uma vez que foram abandonados termos irrelevantes para explicar
+o comportamento médio.
+
+O modelo reduzido é o de efeitos aditivos entre os 3 fatores, ou seja,
+$$
+  \begin{aligned}
+    \mu_{ijk} &= \mu + \alpha_i + \beta_j + \gamma_k.\\
+  \end{aligned}
+$$
+
+As médias ajustadas, acompanhadas do intervalo de confiança individual
+de 95% de cobertura, são exibidas no gráfico abaixo. Dos 12 pontos
+experimentais, 2 apresentam média ajustada com intervalo de confiança
+que cobre o desvio de enchimento 0. Dessa forma, o pesquisador pode
+considerar essas condições de operação para o enchimento das garrafas.
+
+```{r}
+# Abandona termos irrelavantes do modelo.
+m1 <- update(m0, formula = . ~ Carb + Pres + Velo)
+
+# Médias de todos os pontos experimentais considerando o modelo maximal.
+emm <- emmeans(m1, specs = ~Carb + Pres + Velo) %>%
+    as.data.frame()
+
+emm %>%
+    arrange(emmean)
+
+ps <- position_dodge(0.2)
+ggplot(emm, aes(x = Carb, y = emmean, color = Pres, group = Pres)) +
+    facet_wrap(facets = ~Velo) +
+    geom_point(position = ps) +
+    geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL),
+                  position = ps,
+                  width = 0.1) +
+    labs(x = "Carbonação (%)",
+         y = "Desvio de volume de enchimento",
+         color = "Pressão (psi)") +
+    geom_hline(yintercept = 0, lty = 3, col = "black") +
+    geom_rect(data = filter(emm, abs(emmean) < 0.5),
+              mapping = aes(xmin = as.integer(Carb) - 0.2,
+                            xmax = as.integer(Carb) + 0.2,
+                            ymin = emmean - 1.25,
+                            ymax = emmean + 1.25),
+              fill = NA,
+              lty = 2,
+              size = 0.3,
+              position = ps,
+              show.legend = FALSE)
+```
+
+## Considerados finais
+
+Neste capítulo foram introduzidos e analisados experimentos fatoriais
+gerais com 2 e 3 fatores. Em sala de aula foi discutuda as decisões para
+realização dos experimentos: casualização, repetição, etc.
+
+Nesse documento foi colocado o modelo estatístico para cada experimento,
+feitas as contas matriciais para estimação, testes de hipóteses, quadro
+de análise de variância e médias ajustadas.
+
+Experimentos com 4 fatores também são utilizados em pesquisa
+científica. No entanto, ocorrem com uma frequência menor. Por essa
+razão, não serão discutidos nesse capítulo. Nos capítulos seguintes,
+serão estudados experimentos fatoriais com $k = 4$ fatores com base 2
+e 3.
