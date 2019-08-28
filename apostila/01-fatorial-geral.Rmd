@@ -16,7 +16,7 @@ library(emmeans)
 library(tidyverse)
 ```
 
-## Fatorial duplo
+## Fatorial duplo · Bateria
 
 Os dados usados nesta seção referem-se àqueles disponíveis em
 @montgomery2008design. O experimento foi feito por um engenheiro que
@@ -415,7 +415,375 @@ ggplot(tbm, aes(x = mate, y = emmean)) +
 gridExtra::grid.arrange(gg1, gg2, ncol = 1)
 ```
 
-## Fatorial triplo
+## Fatorial duplo · Soja
+
+Os dados analisados nessa sessão também são de experimento fatorial
+duplo, no caso um 3 $\times$ 5 instalado no delineamento de blocos
+casualizados completos com 5 repetições. Estes dados foram usados no
+artigo [SERAFIM, Milson Evaldo et al. Umidade do solo e doses de
+potássio na cultura da soja. Rev. Ciênc. Agron., Fortaleza, v. 43, n. 2,
+p. 222-227, June
+2012.](http://www.scielo.br/scielo.php?script=sci_arttext&pid=S1806-66902012000200003).
+
+### Análise exploratória
+
+A análise exploratória TODO
+
+```{r, include = FALSE}
+soja <-
+structure(list(potassio = c(0L, 30L, 60L, 120L, 180L, 0L, 30L,
+60L, 120L, 180L, 0L, 30L, 60L, 120L, 180L, 0L, 30L, 60L, 120L,
+180L, 0L, 30L, 60L, 120L, 180L, 0L, 30L, 60L, 120L, 180L, 0L,
+30L, 60L, 120L, 180L, 0L, 30L, 60L, 120L, 180L, 0L, 30L, 60L,
+120L, 180L, 0L, 30L, 60L, 120L, 180L, 0L, 30L, 60L, 120L, 180L,
+0L, 30L, 60L, 120L, 180L, 0L, 30L, 60L, 120L, 180L, 0L, 30L,
+60L, 120L, 180L, 0L, 30L, 60L, 120L, 180L), agua = c(37.5, 37.5,
+37.5, 37.5, 37.5, 50, 50, 50, 50, 50, 62.5, 62.5, 62.5, 62.5,
+62.5, 37.5, 37.5, 37.5, 37.5, 37.5, 50, 50, 50, 50, 50, 62.5,
+62.5, 62.5, 62.5, 62.5, 37.5, 37.5, 37.5, 37.5, 37.5, 50, 50,
+50, 50, 50, 62.5, 62.5, 62.5, 62.5, 62.5, 37.5, 37.5, 37.5, 37.5,
+37.5, 50, 50, 50, 50, 50, 62.5, 62.5, 62.5, 62.5, 62.5, 37.5,
+37.5, 37.5, 37.5, 37.5, 50, 50, 50, 50, 50, 62.5, 62.5, 62.5,
+62.5, 62.5), bloco = structure(c(1L, 1L, 1L, 1L, 1L, 1L, 1L,
+1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L,
+2L, 2L, 2L, 2L, 2L, 2L, 2L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L,
+3L, 3L, 3L, 3L, 3L, 3L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L,
+4L, 4L, 4L, 4L, 4L, 5L, 5L, 5L, 5L, 5L, 5L, 5L, 5L, 5L, 5L, 5L,
+5L, 5L, 5L, 5L), .Label = c("I", "II", "III", "IV", "V"), class = "factor"),
+    rengrao = c(14.55, 21.51, 24.62, 21.88, 28.11, 17.16, 24.44,
+    28.5, 32.94, 28.76, 14.13, 19.71, 31.05, 38.35, 36.97, 15.72,
+    19.72, 24.29, 25.39, 28.45, 15.44, 28.12, 31.49, 29.95, 30.06,
+    15.42, 23.68, 33.27, 36.63, 41.04, 12.77, 20.45, 24.35, 27.15,
+    24.08, 16.01, 24.57, 28.85, 26.23, 26.36, 16.08, 20.99, 30.45,
+    36.83, 34.6, 14.26, 23.71, 22.76, 22.46, 22.97, 15.54, 18.48,
+    25.54, 30.29, 30.64, 17.26, 20.51, 24.47, 34.52, 37.62, 10.3,
+    16.28, 23.61, 29.66, 23.34, 14.41, 17.24, 29.08, 29.52, 27.98,
+    17.56, 20.05, 29.9, 20.86, 35.5), pesograo = c(10.7, 13.53,
+    15.78, 12.8, 14.79, 12.26, 12.66, 14.25, 15.84, 12.45, 10.7,
+    11.07, 13.44, 14.15, 14.11, 13.1, 13.51, 15.28, 16.7, 17.89,
+    12.45, 11.77, 12.7, 15.76, 12.53, 11.01, 14.18, 14.04, 15.26,
+    16.55, 12.05, 13.03, 11.94, 16.07, 16.38, 12.04, 12.35, 13.67,
+    11.76, 10.1, 12.56, 12.86, 14.1, 17.13, 15.18, 11.41, 12.82,
+    14.31, 12.76, 14.92, 11.68, 12.4, 15.02, 14.09, 16.47, 11.74,
+    13.32, 13.67, 15.07, 17.42, 11.2, 12.24, 16.99, 17.87, 18.23,
+    11, 11.49, 13.34, 12.51, 10.72, 11.71, 12.85, 13.91, 16.3,
+    17.07), kgrao = c(15.13, 17.12, 19.11, 18.12, 19.11, 12.14,
+    13.63, 17.12, 19.11, 21.1, 13.14, 17.62, 15.13, 18.12, 20.11,
+    13.14, 17.62, 17.62, 20.61, 21.1, 14.13, 14.63, 19.11, 21.1,
+    21.1, 13.14, 14.13, 23.1, 18.61, 19.61, 15.13, 16.62, 18.61,
+    20.11, 20.61, 13.63, 16.12, 20.61, 18.61, 21.6, 14.13, 16.62,
+    17.62, 15.13, 21.1, 14.13, 14.63, 13.14, 22.1, 22.1, 12.64,
+    20.11, 19.11, 17.62, 21.1, 12.64, 15.63, 17.12, 21.1, 22.6,
+    17.62, 19.11, 20.11, 17.12, 21.6, 13.63, 20.61, 19.11, 18.61,
+    21.1, 10.65, 18.61, 18.61, 20.11, 21.1), pgrao = c(1.18,
+    0.99, 0.82, 0.85, 0.88, 1.05, 1.08, 0.74, 1.01, 1.01, 1.18,
+    1.18, 1.08, 1.05, 1.14, 1.08, 1.05, 0.79, 0.87, 0.99, 0.98,
+    1.16, 0.95, 1.14, 1.05, 1.18, 1.08, 1.18, 1.11, 1.14, 1.25,
+    1.01, 0.93, 0.85, 1, 1.21, 1, 0.85, 0.99, 0.91, 1.18, 1.21,
+    1.14, 1.11, 1.18, 1.14, 1.01, 1.25, 0.85, 1.05, 1.04, 0.85,
+    0.75, 1.03, 1.14, 1.21, 1.28, 1.25, 1.14, 1.14, 1.28, 1.18,
+    0.95, 0.85, 1.08, 0.93, 1.25, 0.9, 0.99, 0.93, 1.18, 1.28,
+    1.25, 1.13, 1.15), ts = c(136L, 159L, 156L, 171L, 190L, 140L,
+    193L, 200L, 208L, 237L, 132L, 178L, 231L, 271L, 262L, 120L,
+    146L, 159L, 152L, 159L, 124L, 239L, 248L, 190L, 240L, 140L,
+    167L, 237L, 240L, 248L, 106L, 157L, 204L, 169L, 147L, 133L,
+    199L, 211L, 223L, 261L, 128L, 164L, 216L, 215L, 228L, 125L,
+    185L, 159L, 176L, 154L, 133L, 149L, 170L, 215L, 186L, 147L,
+    154L, 179L, 229L, 216L, 92L, 133L, 139L, 166L, 128L, 131L,
+    150L, 218L, 236L, 261L, 150L, 156L, 215L, 128L, 208L), nvi = c(22L,
+    2L, 0L, 2L, 0L, 20L, 6L, 6L, 7L, 10L, 23L, 10L, 5L, 0L, 1L,
+    22L, 0L, 1L, 0L, 0L, 12L, 9L, 4L, 1L, 4L, 14L, 7L, 3L, 1L,
+    0L, 4L, 3L, 1L, 0L, 1L, 22L, 7L, 3L, 7L, 5L, 21L, 9L, 3L,
+    2L, 2L, 11L, 7L, 1L, 2L, 1L, 27L, 4L, 1L, 2L, 4L, 18L, 10L,
+    2L, 0L, 1L, 5L, 5L, 2L, 0L, 1L, 26L, 1L, 4L, 1L, 4L, 17L,
+    13L, 3L, 0L, 2L), nv = c(56L, 62L, 66L, 68L, 82L, 63L, 86L,
+    94L, 86L, 97L, 58L, 80L, 99L, 110L, 106L, 48L, 64L, 62L,
+    60L, 62L, 52L, 103L, 103L, 87L, 101L, 64L, 77L, 96L, 94L,
+    105L, 44L, 63L, 84L, 66L, 58L, 56L, 81L, 92L, 91L, 100L,
+    50L, 71L, 94L, 89L, 89L, 60L, 75L, 67L, 76L, 63L, 51L, 60L,
+    67L, 90L, 80L, 62L, 67L, 75L, 90L, 87L, 36L, 57L, 53L, 69L,
+    50L, 57L, 61L, 92L, 96L, 110L, 69L, 63L, 95L, 55L, 90L)), class = "data.frame", row.names = c(NA,
+-75L))
+```
+
+```{r, eval = FALSE}
+# Importação do arquivo da web.
+url <- "http://leg.ufpr.br/~walmes/data/soja.txt"
+soja <- read.table(url, header = TRUE, sep = "\t", dec = ",")
+```
+
+```{r}
+# Estrutura do objeto.
+str(soja)
+
+# Repetições de cada ponto experimental.
+xtabs(~agua + potassio, data = soja)
+
+# Análise exploratória.
+gg1 <-
+ggplot(data = soja,
+       mapping = aes(x = potassio,
+                     y = rengrao,
+                     color = factor(agua))) +
+    geom_point() +
+    stat_summary(mapping = aes(group = agua),
+                 geom = "line",
+                 fun.y = "mean")
+gg2 <-
+ggplot(data = soja,
+       mapping = aes(x = agua,
+                     y = rengrao,
+                     color = factor(potassio))) +
+    geom_point() +
+    stat_summary(mapping = aes(group = potassio),
+                 geom = "line",
+                 fun.y = "mean")
+
+gridExtra::grid.arrange(gg1, gg2, ncol = 1)
+```
+
+A análise exploratória indica que uma observação do ponto experimental
+`agua = 62.5 & potassio = 120` tem um valor baixo considerando o
+contexto. Na realidade, foi uma parcela comprometida durante o manuseio
+ficando apenas com uma ao invés de duas plantas no vaso. As variáveis
+`rengrao`, `ts`, `nv` e `nvi` foram então afetadas por isso. Existem 3
+alternativas:
+
+  1. Multiplar o valor observado na parcela por 2 para as variáveis
+     resposta indicadas (extrapolação).
+  2. Remover essa parcela da análise para as variáveis resposta
+     indicadas (perda de informação parcial).
+  3. Conduzir uma análise de variância ponderada para as variáveis
+     resposta indicadas, usando o peso 2 para todas as unidades
+     experimentais com 2 plantas e 1 para esta com uma planta
+     (ponderação).
+
+Dentre as alternativas, a 3 é a mais apropriada e tão fácil de
+implementar quanto as anteriores. Basta que seja criado o vetor de pesos
+e usado na especificação do modelo para a função `lm()` por meio do
+parâmetro `weigths`.
+
+```{r}
+soja %>%
+    filter(agua == 62.5 & potassio == 120) %>%
+    select(rengrao, ts, nvi, nv)
+
+i <- with(soja, agua == 62.5 & potassio == 120 & bloco == "V")
+which(i)
+
+soja$n <- 2
+soja$n[i] <- 1
+```
+
+Para conduzir essa análise, será considerado nessa ocasião que ambos os
+fatores são qualitativos. Dessa forma, o modelo será um modelo de médias
+de pontos experimentais. Depois será indicado o correspondente modelo
+para o das variáveis entrarem como fatores quantitativos.
+
+```{r}
+# Cria cópia dos fatores como qualitativos.
+soja <- transform(soja,
+                  Agua = factor(agua),
+                  Potassio = factor(potassio))
+```
+
+### Especificação e ajuste do modelo
+
+```{r}
+# Ajuste do modelo aos dados.
+m0 <- lm(rengrao ~ bloco + Agua * Potassio,
+         data = soja)
+
+# Diagnóstico do modelo sem ponderação.
+par(mfrow = c(2, 2))
+plot(m0)
+layout(1)
+
+# A variável resposta é a média amostral dentro da unidade experimental.
+m1 <- lm(rengrao/n ~ bloco + Agua * Potassio,
+         data = soja,
+         weights = n)
+
+# Diagnóstico do modelo com ponderação.
+par(mfrow = c(2, 2))
+plot(m1)
+layout(1)
+```
+
+### O quadro de análise de variância
+
+O quadro de análise de variância aparece a seguir. As contas para
+obtenção do quadro de ANOVA já foram apresentadas. No entanto, para
+acomodar os pesos não serão apresentadas as expressões de somatório. Os
+pesos entram na solução de mínimos quadrados da seguinte forma
+$$
+  \hat{\beta} = (X^\top W X)^{-1} (X^\top W y),
+$$
+em que $W$ é uma matriz diagonal contendo os tamanhos amostrais
+associados ao vetor $y$ que é de médias amostrais dentro de cada unidade
+experimental.
+
+```{r}
+# Quadro de análise de variância.
+anova(m1)
+```
+
+O quadro de análise de variância indica que existe interação entre água
+e potássio. Nesse ponto poderia-se ir para o estudo da interação por
+meio de comparações múltiplas. No entanto, pode se estudar a interação
+com um pouco de mais detalhes no próprio quadro de análise de variância
+por meio de testes de hipótese do efeito de um fator dentro dos níveis
+dos demais fatores. Essa hipótese é testada pelo teste F do quadro de
+análise de variância.
+
+Para decompor as somas de quadrados, especificamos um modelo de efeito
+aninhados. Em termos de número de parâmetros, o modelo de efeito
+aninhados tem a mesma quantidade do modelo de efeito cruzados. O que
+muda é a parametrização e é a partir desta que as hipóteses de efeito de
+um fator dentro de níveis dos outros é testada. Abaixo estão as
+expressões dos modelos cruzados e aninhados.
+
+$$
+\begin{aligned}
+\text{E}(y_{ij}) &= \mu +
+   \underset{a - 1}{\tau_i} +
+   \underset{b - 1}{\theta_j} +
+   \underset{(a  - 1)(b - 1)}{\gamma_{ij}}\\
+                 &= \mu +
+   \underset{a - 1}{\tau_i} +
+   \underset{a(b - 1)}{\delta_{i(j)}}
+\end{aligned}
+$$
+
+Nessas expressões, os números abaixo dos parâmetros correspondem a
+quantidade de parâmetros em cada termo, em que $a$ e $b$ são o número de
+níveis e cada fator. A quantidade de parâmetros é a mesma pois
+$$
+  (b - 1) + (a - 1)(b - 1) = a(b - 1).
+$$
+
+A seguir declara-se o modelo de efeitos aninhados de potássio dentro de
+água e depois de água dentro de potássio. O teste de hipótese é feito a
+partição das somas de quadrados do quadro de análise de variância. Para
+a partição é preciso indicar a posição dos parâmetros que estarão sob
+teste, ou seja, envolvidos na hipótese nula
+$$
+H_{0i}:
+  \begin{bmatrix}
+    \delta_{i(1)}\\
+    \vdots\\
+    \delta_{i(b-1)} \\
+  \end{bmatrix} =
+  \begin{bmatrix}
+    0 \\
+    \vdots \\
+    0
+  \end{bmatrix},
+  i = 1, \ldots, a.
+$$
+
+O código deixa bastante deduzível como isso é informado e como
+interpretar o resultado.
+
+```{r}
+# Modelo de efeitos aninhados.
+m2 <- aov(pesograo/n ~ bloco + Agua/Potassio,
+          data = soja,
+          weights = n)
+coef(m2)
+
+# Disposição das estimativas dos parâmetros.
+names(coef(m2)[m2$assign == 3])
+
+# Para testar o efeito de potássio em cada nível de água.
+Pot_in_Ag <- list("Pot@37.5" = c(1, 4, 7, 10),
+                  "Pot@50.0" = c(2, 5, 8, 11),
+                  "Pot@62.5" = c(3, 6, 9, 12))
+summary(m2, split = list("Agua:Potassio" = Pot_in_Ag))
+
+# Modelo de efeitos aninhados.
+m2 <- aov(pesograo/n ~ bloco + Potassio/Agua,
+          data = soja,
+          weights = n)
+coef(m2)
+
+# Disposição das estimativas dos parâmetros.
+names(coef(m2)[m2$assign == 3])
+
+# Para testar o efeito de água em cada nível de potássio.
+Ag_in_Pot <- list("Agua@0" = c(1, 6),
+                  "Agua@30" = c(2, 7),
+                  "Agua@60" = c(3, 8),
+                  "Agua@120" = c(4, 9),
+                  "Agua@180" = c(5,10))
+summary(m2, split = list("Potassio:Agua" = Ag_in_Pot))
+```
+
+### Estudo da interação
+
+```{r}
+emm_pot_ag <- emmeans(m1, specs = ~Potassio | Agua)
+emm_pot_ag
+
+contrast(emm_pot_ag, method = "pairwise")
+
+emm_ag_pot <- emmeans(m1, specs = ~Agua | Potassio)
+emm_ag_pot
+
+contrast(emm_ag_pot, method = "pairwise")
+
+gg1 <-
+ggplot(as.data.frame(emm_pot_ag),
+       mapping = aes(x = Potassio, y = emmean, group = 1)) +
+    facet_wrap(facets = ~Agua, nrow = 1) +
+    geom_point() +
+    geom_line() +
+    geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL),
+                  width = 0.1) +
+    labs(x = "Potássio",
+         y = "Rendimento de grãos")
+
+gg2 <-
+ggplot(as.data.frame(emm_ag_pot),
+       mapping = aes(x = Agua, y = emmean, group = 1)) +
+    facet_wrap(facets = ~Potassio, nrow = 1) +
+    geom_point() +
+    geom_line() +
+    geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL),
+                  width = 0.1) +
+    labs(x = "Água",
+         y = "Rendimento de grãos")
+
+gridExtra::grid.arrange(gg1, gg2, ncol = 1)
+```
+
+Fica evidente pelos resultados que acomodar o efeito, principalmente de
+potássio, por uma função numérica dos níveis pode ser mais interessante
+que considerar como variável qualitativa. Isso será feito em outros
+momentos durante o curso. No entanto, pode-se adiantar que, dado a
+trajetória das médias que o acomodar o efeito de potássio por um
+polinômio de 3º grau e o efeito de água com um de 2º seja
+suficiente. Dessa forma, o modelo seria
+$$
+\begin{aligned}
+\text{E}(y_{ij}) &= \mu \\
+ &+ \tau_1 \cdot \text{ag} +
+    \tau_2 \cdot \text{ag}^2 \\
+ &+ \theta_1 \cdot \text{pt} +
+    \theta_2 \cdot \text{pt}^2 +
+    \theta_3 \cdot \text{pt}^3\\
+ &+ \gamma_{11} \cdot \text{ag}  \cdot\text{pt} +
+    \gamma_{21} \cdot \text{ag}^2\cdot\text{pt}\\
+ &+ \gamma_{12} \cdot \text{ag}  \cdot\text{pt}^2 +
+    \gamma_{22} \cdot \text{ag}^2\cdot\text{pt}^2\\
+ &+ \gamma_{13} \cdot \text{ag}  \cdot\text{pt}^3 +
+    \gamma_{23} \cdot \text{ag}^2\cdot\text{pt}^3.\\
+\end{aligned}
+$$
+
+O termo que representa o efeito de blocos foi omitido por simplicidade.
+
+## Fatorial triplo · Desvio de enchimento
 
 Para exemplificar a análise do experimento fatorial triplo, será
 considerado os dados em @montgomery2008design. O contexto do experimento
