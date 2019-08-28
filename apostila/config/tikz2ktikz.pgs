@@ -1,0 +1,22 @@
+\documentclass[border = 1em]{standalone}
+
+\usepackage{amsmath}
+\usepackage{tikz}
+
+% \usepackage[light, condensed]{iwona}
+% \usepackage[T1]{fontenc}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[sfdefault, light, scaled = .95]{FiraSans}
+
+\pagestyle{empty}
+
+\usetikzlibrary{matrix}
+
+%-----------------------------------------------------------------------
+\begin{document}
+% \noindent
+<>
+\end{document}
+%-----------------------------------------------------------------------
