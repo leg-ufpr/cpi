@@ -108,3 +108,4 @@ bank-*
 bank.*
 
 !slides/config_ioslides/MathJax.html
+!apostila/config/tikz2pdf.tex
