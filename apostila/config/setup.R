@@ -6,9 +6,10 @@ opts_chunk$set(cache = FALSE,
                fig.height = 4.32,
                fig.align = "center",
                eval.after= "fig.cap",
-               #dpi = 96,
-               #dev = "png",               
-               #dev.args = list(family = "Lato"),
+               engine.opts = list(template = "config/tikz2pdf.tex"),
+               # dpi = 96,
+               # dev = "png",
+               # dev.args = list(family = "Lato"),
                dev.args = list(family = "Palatino"))
 options(width = 68)
 
