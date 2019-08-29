@@ -301,6 +301,10 @@ ortogonais entre si.
 
 ## Representação geométrica
 
+Considerando o fatorial $2^3$, a representação geométrica indica os
+pontos experimentais no espaço $k$-dimensional. Os vértices estão sob
+as coordenadas $-1$ e $+1$ em cada um dos eixos.
+
 ```{r, engine = 'tikz', echo = FALSE}
 \begin{tikzpicture}[
   scale = 1, ->, thick, z = {(0.45, 0.35)}, node distance = .65cm,
@@ -337,9 +341,45 @@ ortogonais entre si.
 \end{tikzpicture}%
 ```
 
-TODO
-
 ## Estimação dos efeitos
+
+O modelo estatístico corresponde ao experimento fatorial declarado acima
+é linear nos parâmetros. Dessa forma, a estimação dos parâmetros pelo
+método de mínimos quadrados ordinários é feita por
+$$
+  \hat{\beta} = (X^\top X)^{-1} (X^\top y).
+$$
+
+A variância das estimativas é obtida por
+$$
+  \text{Var}(\hat{\beta}) = \sigma^2 \text{diag}((X^\top X)^{-1}).
+$$
+
+Quando a matriz $X$ é a matriz de sinais decorrente da codificação com
+pontos de suporte em $-1$ e $+1$, pode-se facilmente estimar os
+parâmetros por meio de contrastes entre grupos de médias (Figura
+\@ref(fig:fatorial-2k-efeito)).
+
+(ref:fatorial-2k-efeito) Estimação dos parâmetros do modelo para o
+experimento fatorial $2^3$ com $r = 1$ repetições.
+
+```{r fatorial-2k-efeito, echo = FALSE, out.width = "100%", fig.cap = '(ref:fatorial-2k-efeito)'}
+knitr::include_graphics("./img/fatorial-2k-efeito.png")
+```
+
+Pode-se facilmente compreender que os efeitos estimados são funções
+lineares dos valores observados nos pontos experimentais. Para ser mais
+específico, são contrastes entre dois grupos de médias amostrais. A
+figura \@ref(fig:cubos-fatoriais-efeitos) exibe geometricamente o
+conjunto de pontos experimentais considerado em cada um dos termos do
+contraste.
+
+(ref:cubos-fatoriais-efeitos) Ilustração geométrica de como os efeitos
+são determinados a partir dos pontos experimentais do delineamento.
+
+```{r cubos-fatoriais-efeitos, echo = FALSE, out.width = "80%", fig.cap = '(ref:cubos-fatoriais-efeitos)'}
+knitr::include_graphics("./img/cubos_fatoriais_efeitos.png")
+```
 
 ## Testes de hipótese
 
