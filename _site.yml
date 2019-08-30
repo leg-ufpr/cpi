@@ -36,7 +36,10 @@ navbar:
         icon: fa-file
     - text: "Scripts"
       icon: fa-code
-      href: scripts/
+      menu:
+      - text: "fatorial-2k.R"
+        href: ./scripts/fatorial-2k.R
+        icon: fa-file
   right:
     - icon: fa-user
       text: W. Zeviani
