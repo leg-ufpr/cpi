@@ -1,0 +1,352 @@
+# Análise do fatorial 2^k^ sem repetições
+
+```{r, message = FALSE}
+library(tidyverse)
+library(lattice)
+```
+
+## Rendimento de processo químico
+
+Um planejamento fatorial $2^4$ foi corrido em um processo químico. Os
+fatores do planejamento são A = tempo, B = concentração, C = pressão,
+D = temperatura. A variável resposta é rendimento.
+
+Esses dados são do exerício 14-20, na página 355 do
+@montgomery2009estatistica.
+
+### Análise exploratória
+
+Nessa seção serão feitos os cálculos para obter as estimativas dos
+parâmetros, somas de quadrados, predição e erros padrões. Na seção
+seguinte os dados serão analisados com funções do R e será feita
+discussão dos resultados.
+
+```{r}
+rm(list = objects())
+
+l <- c(-1, 1)
+ex14.20 <- expand.grid(A = l, B = l, C = l, D = l,
+                       KEEP.OUT.ATTRS = FALSE)
+# ex14.20$y <- scan()
+# dput(ex14.20$y)
+ex14.20$y <- c(12, 18, 13, 16, 17, 15, 20, 15, 10, 25, 13, 24, 19, 21,
+               17, 23)
+
+my_plot <- function(f1, f2, y, data) {
+    ggplot(data = data.frame(x = data[[f1]],
+                             color = data[[f2]],
+                             y = data[[y]]),
+           mapping = aes(x = x,
+                         y = y,
+                         color = factor(color),
+                         group = color)) +
+        geom_point() +
+        stat_summary(geom = "line", fun.y = "mean") +
+        labs(x = f1, y = y, color = f2)
+}
+
+# Gráficos para relações mariginais de 2 fatores.
+gridExtra::grid.arrange(
+               ncol = 2,
+               my_plot("A", "B", "y", ex14.20),
+               my_plot("A", "C", "y", ex14.20),
+               my_plot("B", "C", "y", ex14.20),
+               my_plot("A", "D", "y", ex14.20),
+               my_plot("B", "D", "y", ex14.20),
+               my_plot("C", "D", "y", ex14.20))
+```
+
+### Análise feita de forma operacional
+
+TODO
+
+### Análise feita com funções
+
+```{r}
+# Ajuste do modelo saturado (consome todos os graus de liberdade).
+m0 <- lm(y ~ A * B * C * D, data = ex14.20)
+
+# NOTE: não é possível ver gráfico dos resíduos porque todos os resíduos
+# são 0.
+
+# Quadro de análise de variância.
+anova(m0)
+
+cfs <- coef(m0)[-1] %>%
+    enframe()
+
+# Gráfico quantil-quantil normal das estimativas.
+qq <- qqnorm(cfs$value, pch = 19, col = "orange")
+text(x = qq$x, y = qq$y,
+     labels = cfs$name,
+     pos = ifelse(qq$x < 0, 4, 2))
+
+ggplot(data = cfs,
+       mapping = aes(x = reorder(name, value), y = value)) +
+    geom_segment(aes(xend = name, yend = 0)) +
+    geom_segment(data = data.frame(x = 3.5, xend = 11.5, y = -0.25),
+                 color = "orange",
+                 arrow = arrow(length = unit(0.1, "inches"),
+                               angle = 90,
+                               ends = "both"),
+                 mapping = aes(x = x, y = y, xend = xend, yend = y))
+
+# Gráfico quantil-quantil normal nos efeitos estimados.
+# FrF2::DanielPlot(m0, pch = 19)
+```
+
+Pela análise do gráfico QQ-normal, os termos mais próximo de zero
+incluem as interações de 4 e 3 ordem. Pode-se então, para ter uma
+estimativa de variância residual, abandonar esses termos do modelo. Essa
+estimativa não é uma estimativa pura de variância residual mas sim
+inteiramente proveniente de termos omitidos do modelo.
+
+```{r}
+# Ajuste do modelo reduzido, com alguns termos de até 2 grau.
+m1 <- update(m0, . ~ A * (B + C + D))
+anova(m1)
+
+# Mais reduzido ainda com a remoção de B.
+m2 <- update(m0, . ~ A * (C + D))
+anova(m2)
+
+# Malha de valores para predição.
+pred <- expand.grid(A = seq(-1, 1, by = 0.1),
+                    C = seq(-1, 1, by = 0.1),
+                    D = seq(-1, 1, by = 0.5))
+pred <- cbind(pred,
+              as.data.frame(predict(m2,
+                                    newdata = pred,
+                                    se.fit = TRUE)[1:2]))
+
+# Gráfico da superfície média (valores ajustados).
+ggplot(data = pred,
+       mapping = aes(x = A, y = C, z = fit, fill = fit)) +
+    facet_wrap(facets = ~D) +
+    geom_tile() +
+    scale_fill_distiller(palette = "Spectral",
+                         direction = 1) +
+    geom_contour(color = "black") +
+    coord_equal()
+
+# Gráficos de linhas.
+ggplot(data = pred,
+       mapping = aes(x = A, y = fit, color = C, group = C)) +
+    facet_wrap(facets = ~D) +
+    geom_line() +
+    scale_color_distiller(palette = "Spectral")
+
+# Esquema de cores para o gráfico com a `lattice`.
+colr <- RColorBrewer::brewer.pal(11, "Spectral")
+colr <- colorRampPalette(colr, space = "rgb")
+
+# Gráfico de contornos de nível.
+contourplot(fit ~ A + C | D,
+            data = pred,
+            cuts = 20,
+            aspect = 1,
+            as.table = TRUE,
+            region = TRUE,
+            col.regions = colr)
+
+# Adicionando os contornos sobre a superfície. Requer funções externas.
+source(paste0("https://raw.githubusercontent.com/walmes/wzRfun/",
+              "master/R/panel.3d.contour.R"))
+
+# Gráfico de superfície em 3D com isolinhas (ainda não recomendo).
+wireframe(fit ~ A + C | D,
+          data = pred,
+          as.table = TRUE,
+          drape = TRUE,
+          col = rgb(0, 0, 0, 0.25),
+          panel.3d.wireframe = panel.3d.contour,
+          col.contour = 1,
+          type = "on",
+          col.regions = colr(100))
+
+# Valores preditos em cada ponto experimental.
+grid <- unique(ex14.20[, c("A", "C", "D")])
+grid$fit <- predict(m2, newdata = grid)
+arrange(grid, fit)
+```
+
+## Resistência à compressão do concreto
+
+Os dados mostrados a seguir representam uma única réplica de um
+planejamento $2^5$ que é usado em um experimento para estudar a
+resistência à compressão do concreto. Os fatores são mistura (A), tempo
+(B), laboratório (C), temperatura (D) e tempo de secagem (E).
+
+Esses dados são do exerício 14-14, na página 354 do
+@montgomery2009estatistica.
+
+```{r}
+# Criação dos dados.
+l <- c(-1, 1)
+ex14.14 <- expand.grid(A = l, B = l, C = l, D = l, E = l,
+                       KEEP.OUT.ATTRS = FALSE)
+# ex14.14$y <- scan()
+# dput(ex14.14$y)
+ex14.14$y <- c(7, 9, 34, 55, 6, 10, 30, 53, 10, 11, 30, 61, 8, 11, 33,
+               60, 8, 12, 35, 62, 6, 12, 30, 55, 19, 15, 40, 65, 15, 20,
+               34, 68)
+
+str(ex14.14)
+
+my_plot <- function(f1, f2, y, data) {
+    ggplot(data = data.frame(x = data[[f1]],
+                             color = data[[f2]],
+                             y = data[[y]]),
+           mapping = aes(x = x,
+                         y = y,
+                         color = factor(color),
+                         group = color)) +
+        geom_point() +
+        stat_summary(geom = "line", fun.y = "mean") +
+        labs(x = f1, y = y, color = f2)
+}
+
+# Alguns para relações mariginais de 2 fatores.
+gridExtra::grid.arrange(
+               ncol = 2,
+               my_plot("A", "B", "y", ex14.14),
+               my_plot("B", "A", "y", ex14.14),
+               my_plot("D", "E", "y", ex14.14),
+               my_plot("E", "D", "y", ex14.14))
+```
+
+### Análise feita de forma operacional
+
+TODO
+
+### Análise feita com funções
+
+```{r}
+# Ajuste do modelo saturado (consome todos os graus de liberdade).
+m0 <- lm(y ~ A * B * C * D * E, data = ex14.14)
+
+# NOTE: não é possível ver gráfico dos resíduos porque todos os resíduos
+# são 0.
+
+# Quadro de análise de variância.
+anova(m0)
+
+cfs <- coef(m0)[-1] %>%
+    enframe()
+
+# Gráfico quantil-quantil normal das estimativas.
+qq <- qqnorm(cfs$value, pch = 19, col = "orange")
+text(x = qq$x, y = qq$y,
+     labels = cfs$name,
+     pos = ifelse(qq$x < 0, 4, 2))
+
+ggplot(data = cfs,
+       mapping = aes(x = reorder(name, value), y = value)) +
+    geom_segment(aes(xend = name, yend = 0)) +
+    geom_segment(data = data.frame(x = 2.5, xend = 25.5, y = 2),
+                 color = "orange",
+                 arrow = arrow(length = unit(0.1, "inches"),
+                               angle = 90,
+                               ends = "both"),
+                 mapping = aes(x = x, y = y, xend = xend, yend = y)) +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+# Gráfico quantil-quantil normal nos efeitos estimados.
+# FrF2::DanielPlot(m0, pch = 19)
+```
+
+Pela análise do gráfico QQ-normal, os termos mais próximo de zero
+incluem as interações acima de 3 ordem. Pode-se então, para ter uma
+estimativa de variância residual, abandonar esses termos do modelo. Essa
+estimativa não é uma estimativa pura de variância residual mas sim
+inteiramente proveniente de termos omitidos do modelo.
+
+```{r}
+# Ajuste do modelo reduzido com termos de 3 grau.
+m1 <- update(m0, . ~ (A + B + C + D + E)^3)
+anova(m1)
+
+# Ajuste do modelo reduzido com termos de 2 grau.
+m2 <- update(m0, . ~ (A + B + C + D + E)^2)
+anova(m2)
+
+# Ajuste do modelo apenas com os termos relevantes.
+m3 <- update(m0, . ~ A + B + D + E + A:B + D:E)
+anova(m3)
+
+# Razão entre modelos encaixados (apenas curiosidade).
+anova(m3, m1)
+
+# Malha de valores para predição.
+pred <- expand.grid(A = seq(-1, 1, by = 0.1),
+                    B = seq(-1, 1, by = 0.1),
+                    D = seq(-1, 1, by = 1),
+                    E = seq(-1, 1, by = 1))
+pred <- cbind(pred,
+              as.data.frame(predict(m3,
+                                    newdata = pred,
+                                    se.fit = TRUE)[1:2]))
+
+# Gráfico da superfície média (valores ajustados).
+ggplot(data = pred,
+       mapping = aes(x = A, y = B, z = fit, fill = fit)) +
+    facet_grid(facets = D ~ E) +
+    geom_tile() +
+    scale_fill_distiller(palette = "Spectral",
+                         direction = 1) +
+    geom_contour(color = "black") +
+    coord_equal()
+
+# Gráficos de linhas.
+ggplot(data = pred,
+       mapping = aes(x = A, y = fit, color = B, group = B)) +
+    facet_grid(facets = D ~ E) +
+    geom_line() +
+    scale_color_distiller(palette = "Spectral")
+
+# Esquema de cores para o gráfico com a `lattice`.
+colr <- RColorBrewer::brewer.pal(11, "Spectral")
+colr <- colorRampPalette(colr, space = "rgb")
+
+# Adicionando os contornos sobre a superfície. Requer funções externas.
+source(paste0("https://raw.githubusercontent.com/walmes/wzRfun/",
+              "master/R/panel.3d.contour.R"))
+
+# Gráfico de superfície em 3D com isolinhas (ainda não recomendo).
+wireframe(fit ~ A + B | D + E,
+          data = pred,
+          as.table = TRUE,
+          drape = TRUE,
+          col = rgb(0, 0, 0, 0.25),
+          panel.3d.wireframe = panel.3d.contour,
+          col.contour = 1,
+          type = "on",
+          col.regions = colr(100))
+
+# Valores preditos em cada ponto experimental.
+grid <- unique(ex14.14[, c("A", "B", "D", "E")])
+grid$fit <- predict(m3, newdata = grid)
+arrange(grid, fit)
+```
+
+## Rendimento da produção de semicondutores
+
+Um experimento foi realizado em uma planta de fabricação de
+semicondutores, como um esforço para aumentar o rendimento. Cinco
+fatores, cada um com dois níveis, foram estudados. Os fatores (e níveis)
+foram A = abertura (pequena, grande), B = tempo de exposição (20% acima
+e abaixo do valor nominal), C = tempo de desenvolvimento (30 e 45
+segundos), D = dimensão da máscara (pequena, grande) e E = tempo de
+ataque químico (14.5 e 15.5 minutos). O experimento foi um fatorial
+$2^5$ sem réplicas.
+
+```{r}
+l <- c(-1, 1)
+ex14.17 <- expand.grid(A = l, B = l, C = l, D = l, E = l,
+                       KEEP.OUT.ATTRS = FALSE)
+# ex14.17$y <- scan()
+# dput(ex14.17$y)
+ex14.17$y <- c(7, 9, 34, 55, 16, 20, 40, 60, 8, 10, 32, 50, 18, 21, 44,
+               61, 8, 12, 35, 52, 15, 22, 45, 65, 6, 10, 30, 53, 15, 20,
+               41, 63)
+```

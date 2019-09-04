@@ -1,0 +1,604 @@
+# Análise do fatorial 2^k^ com repetições
+
+```{r, message = FALSE}
+library(tidyverse)
+library(lattice)
+```
+
+## Tempo de vida de ferramenta de corte
+
+Um engenheiro está interessado no efeito da velocidade de corte (A), na
+dureza do metal (B) e no ângulo de corte (C) sobre a vida de uma
+ferramenta de corte (y). Dois níveis de cada fator são escolhidos e duas
+réplicas de um planejamento fatorial $2^3$ são feitas. Os dados de vida
+(em horas), da ferramenta são recriados nos fragmentos de código abaixo.
+
+Esses dados são do exerício 14-12, na página 353 do
+@montgomery2009estatistica. Em @montgomery2001design, dados do mesmo
+experimento são reportados com 3 repetições na página 276, exercício
+6-1, mas a resposta está dividida por 10.
+
+### Análise exploratória
+
+Nessa seção serão feitos os cálculos para obter as estimativas dos
+parâmetros, somas de quadrados, predição e erros padrões. Na seção
+seguinte os dados serão analisados com funções do R e será feita
+discussão dos resultados.
+```{r}
+rm(list = objects())
+
+# Níveis codificados.
+l <- c(-1, 1)
+
+# Tabela contendo todos os pontos experimentais e repetições.
+ex14.12 <- expand.grid(A = l,
+                       B = l,
+                       C = l,
+                       rept = 1:2,
+                       KEEP.OUT.ATTRS = FALSE)
+
+# Variável resposta do experimento.
+# ex41.12$y <- scan()
+# dput(ex41.12$y)
+ex14.12$y <- c(221, 325, 354, 552, 440, 406, 605, 392, 311, 435, 348,
+               472, 453, 377, 500, 419)
+
+# Estrutura.
+str(ex14.12)
+
+# Repetições de cada ponto experimental.
+ftable(xtabs(~A + B + C, data = ex14.12))
+
+gg1 <-
+ggplot(data = ex14.12,
+       mapping = aes(x = A, y = y, color = B)) +
+    facet_wrap(facets = ~C) +
+    geom_point() +
+    stat_summary(mapping = aes(group = B),
+                 fun.y = "mean",
+                 geom = "line")
+
+gg2 <-
+ggplot(data = ex14.12,
+       mapping = aes(x = C, y = y, color = B)) +
+    facet_wrap(facets = ~A) +
+    geom_point() +
+    stat_summary(mapping = aes(group = B),
+                 fun.y = "mean",
+                 geom = "line")
+
+gridExtra::grid.arrange(gg1, gg2, ncol = 1)
+
+```
+
+### Análise feita de forma operacional
+
+```{r}
+# Tabela de dados.
+ex14.12
+
+# Matriz do modelo e vetor resposta.
+# X <- model.matrix(~A * B * C, data = ex14.12)
+X <- with(ex14.12,
+          cbind(I = 1,
+                A, B, C,
+                AB = A * B, AC = A * C, BC = B * C,
+                ABC = A * B * C))
+y <- cbind(ex14.12$y)
+
+# Matriz do modelo ao lado do vetor da resposta.
+data.frame(X, "|" = "|", y, check.names = FALSE)
+
+k <- 3 # Número de fatores.
+r <- 2 # Número de repetições.
+
+# Contrates são o principal artefato. É apenas X'y.
+ctr <- crossprod(X, y)
+ctr
+
+# Estimativas dos parâmetros.
+# beta <- solve(crossprod(X), crossprod(X, y))
+beta <- diag(1/(r * 2^k), 2^k) %*% ctr
+beta
+
+# Estimativa dos parâmetros (por somatórios basicamente).
+ctr/(r * 2^k) # idem ao `beta`
+
+# Somas de quadrados.
+tail(ctr, n = -1)^2/(r * 2^k)
+
+# Valores ajustados para cada ponto experimental.
+ex14.12$hy <- X %*% beta
+
+# Resíduos.
+ex14.12$res <- with(ex14.12, y - hy)
+
+# Desvio padrão residual.
+s2 <- with(ex14.12, sum(res^2)/(nrow(X) - ncol(X)))
+s2
+
+# Erros padrões das estimativas dos parâmetros.
+# summary(m0)$coefficients
+sqrt(s2/(r * 2^k))
+
+# Erros padrões das médias nos pontos experimentais.
+# predict(m0, se.fit = TRUE)$se.fit
+sqrt(s2/r)
+
+# Matriz para a predição de um ponto qualquer.
+# Xnew <- model.matrix(~A * B * C,
+#                      data = data.frame(A = -1, B = 0.25, C = 0.5))
+Xnew <- with(data.frame(A = -1, B = 0.25, C = 0.5),
+             cbind(I = 1,
+                   A, B, C,
+                   AB = A * B, AC = A * C, BC = B * C,
+                   ABC = A * B * C))
+Xnew
+
+# Predição em um ponto qualquer.
+Xnew %*% beta
+
+# Variância da predição em um ponto qualquer.
+# Xnew %*% (s2 * solve(crossprod(X))) %*% t(Xnew)
+Xnew %*% (s2 * diag(1/(r * 2^k), 2^k)) %*% t(Xnew)
+```
+
+### Análise feita com funções
+
+Nessa sessão serão usadas as funções do R para análise dos dados. Como é
+um modelo linear, usa-se a `lm()`.
+
+```{r}
+# Ajuste do modelo saturado.
+m0 <- lm(y ~ A * B * C, data = ex14.12)
+
+# Diagnóstico nos resíduos.
+par(mfrow = c(1, 2))
+plot(m0, which = 3)
+plot(m0, which = 2)
+layout(1)
+```
+
+Pela inspeção dos gráficos, não existem evidências contra o atendimento
+dos pressupostos. Obviamente que por serem poucas observações,
+dificulta-se detectar padrões característicos, como relação
+média-variância.
+
+```{r}
+# Quadro de análise de variância.
+anova(m0)
+
+# Estimativas.
+summary(m0)
+```
+
+Pela avaliação do quadro de análise de variância, não houve interações
+relevantes envolvendo B, apenas seu efeito principal. Houve interação
+dupla entre A e C. Portanto, alguns termos do modelo podem ser
+abandonados.
+
+Em termos de hipóteses, para delineamentos de efeitos ortogonais e
+fatores de dois níveis, a estatística F da `anova()` e t do
+`summary()`, são essencialmente a mesma coisa.
+
+```{r}
+# Ajuste do modelo reduzido apenas nos termos relevantes.
+m1 <- update(m0, . ~ B + A * C)
+anova(m1)
+
+# Variâncias residuais.
+c(s2_m0 = summary(m0)$sigma^2,
+  s2_m1 = summary(m1)$sigma^2)
+
+# Teste para nulidade dos termos abandonados.
+anova(m1, m0)
+```
+
+O modelo reduzido ajustado pelo abandono daqueles não relevantes não
+diferiu, conforme esperado, do modelo maximal. O negligenciável aumento
+da variância resídual não é nenhum problema. Poderia-se, sem problema
+algum, conduzir as inferência com a estimativa pura da variância,
+proveniente do modelo `m0`. Por outro lado, não haveriam diferenças
+substanciais nos resultados.
+
+```{r}
+# Malha fina de valores para predição.
+pred <- expand.grid(A = seq(-1, 1, by = 0.1),
+                    C = seq(-1, 1, by = 0.1),
+                    B = seq(-1, 1, by = 0.5))
+pred <- cbind(pred,
+              as.data.frame(predict(m1,
+                                    newdata = pred,
+                                    se.fit = TRUE)[1:2]))
+
+# Gráfico da superfície média (valores ajustados).
+ggplot(data = pred,
+       mapping = aes(x = A, y = C, z = fit, fill = fit)) +
+    facet_wrap(facets = ~B) +
+    geom_tile() +
+    scale_fill_distiller(palette = "Spectral",
+                         direction = 1) +
+    geom_contour(color = "black") +
+    coord_equal()
+```
+
+A função apresenta um comportamento que, conforme antecipado, indica que
+o efeito de A depende do valor de C e vice versa. É possível entender
+melhor com gráfico de linhas.
+
+```{r}
+# Gráficos de linhas.
+ggplot(data = pred,
+       mapping = aes(x = A, y = fit, color = C, group = C)) +
+    facet_wrap(facets = ~B) +
+    geom_line() +
+    scale_color_distiller(palette = "Spectral")
+```
+
+Quando $C = 0$, praticamente não existe efeito de A. Quando $C < 0$, o
+efeito de A é positivo. Quando $C > 0$, o efeito de A é negativo. Como o
+efeito de B é aditivo aos demais, verifica-se que o seu efeito é
+positivo, ou seja, o aumento de B desloca a para cima o valor médio.
+
+```{r}
+# Gráfico do valor para erro padrão em cada ponto.
+ggplot(data = pred,
+       mapping = aes(x = A, y = C, z = se.fit, fill = se.fit)) +
+    facet_wrap(facets = ~B) +
+    geom_tile() +
+    scale_fill_distiller(palette = "Spectral") +
+    geom_contour(color = "black") +
+    coord_equal()
+```
+
+O erro padrão para a média aumenta a medida que o ponto experimental
+predito se afasta da origem da região experimental. No entanto, não
+depende da direção, apenas da distância. O comportamento é isotrópico,
+ou seja, os contornos são circulares. Essa é uma propriedade
+interessante de um delineamento. O erro padrão, para modelos em que a
+variância é constante, não depende do efeito dos fatores e sim apenas
+dos pontos de suporte do experimento.
+
+No fragmento a seguir outros gráficos são confeccionados apenas para
+ilustrar outras formas de visualização. Eu particularmente não aconselho
+o uso de gráficos 3D.
+
+```{r}
+# Esquema de cores para o gráfico com a `lattice`.
+colr <- RColorBrewer::brewer.pal(11, "Spectral")
+colr <- colorRampPalette(colr, space = "rgb")
+
+# Gráfico de contornos de nível.
+contourplot(fit ~ A + C | B,
+            data = pred,
+            cuts = 20,
+            aspect = 1,
+            as.table = TRUE,
+            region = TRUE,
+            col.regions = colr)
+
+# Gráfico de superfície em 3D (não recomendo).
+wireframe(fit ~ A + C | B,
+          data = pred,
+          as.table = TRUE,
+          drape = TRUE,
+          col.regions = colr(100))
+
+# Apenas para mostrar que B desloca a superfície.
+wireframe(fit ~ A + C, groups = B,
+          data = pred,
+          as.table = TRUE)
+
+# Adicionando os contornos sobre a superfície. Requer funções externas.
+source(paste0("https://raw.githubusercontent.com/walmes/wzRfun/",
+              "master/R/panel.3d.contour.R"))
+
+# Gráfico de superfície em 3D com isolinhas (ainda não recomendo).
+wireframe(fit ~ A + C | B,
+          data = pred,
+          as.table = TRUE,
+          drape = TRUE,
+          col = rgb(0, 0, 0, 0.25),
+          panel.3d.wireframe = panel.3d.contour,
+          col.contour = 1,
+          type = "on",
+          col.regions = colr(100))
+
+# Valores preditos em cada ponto experimental.
+grid <- unique(ex14.12[, c("A", "B", "C")])
+grid$fit <- predict(m1, newdata = grid)
+arrange(grid, fit)
+```
+
+Pela inspeção dos gráficos, a melhor combinação experimental no sentido
+de prolongar a vida da ferramente de corte é
+$$
+  \hat{y}_\text{opt} = f(A = -1, B = 1, C = 1) = `r round(max(grid$fit), 2)`.
+$$
+
+Dado que o efeito de B é aditivo aos demais, a condicação de operação
+$\{A = -1, C = 1\}$ é a melhor independente do nível de B, ou seja,
+independente da dureza do metal.
+
+## Sabor de um refrigerante
+
+Imagina-se que 4 fatores influenciam o sabor de um refrigerante: tipo de
+adocante (A), razão de xarope e água (B), nível de carbonatação (C) e
+temperatura (D). Cada fator pode ser corrido em dois níveis, produzindo
+um planejamento $2^4$. Em cada corrida do planejamento, amostras de
+refrigerante são dadas a 20 pessoas para testar. Cada pessoa atribui uma
+pontuação de 1 a 10 para o refrigerante. A pontuação total é a variável
+resposta avaliada e o objetivo é encontrar uma formulação que maximize a
+pontuação total. Duas réplicas desse planejamento são corridas e os
+resultados são mostrados na tabela.
+
+Esses dados são do exerício 14-13, na página 354 do
+@montgomery2009estatistica.
+
+### Análise exploratória
+
+Nessa seção serão feitos os cálculos para obter as estimativas dos
+parâmetros, somas de quadrados, predição e erros padrões. Na seção
+seguinte os dados serão analisados com funções do R e será feita
+discussão dos resultados.
+
+```{r}
+rm(list = objects())
+
+# Tabela contendo todos os pontos experimentais e repetições.
+l <- c(-1, 1)
+ex14.13 <- expand.grid(A = l,
+                       B = l,
+                       C = l,
+                       D = l,
+                       rept = 1:2,
+                       KEEP.OUT.ATTRS = FALSE)
+
+# Variável resposta do experimento.
+ex14.13$y <- c(159, 168, 158, 166, 175, 179, 173, 179, 164, 187, 163,
+               185, 168, 197, 170, 194, 163, 175, 163, 168, 178, 183,
+               168, 182, 159, 189, 159, 191, 174, 199, 174, 198)
+
+# Estrutura.
+str(ex14.13)
+
+# Repetições de cada ponto experimental.
+ftable(xtabs(~A + B + C + D, data = ex14.13))
+
+# Apenas um gráfico mas vários devem ser feitos.
+ggplot(data = ex14.13,
+       mapping = aes(x = A, y = y, color = B)) +
+    facet_grid(facets = C ~ D) +
+    geom_point() +
+    stat_summary(mapping = aes(group = B),
+                 fun.y = "mean",
+                 geom = "line")
+```
+
+### Análise feita de forma operacional
+
+```{r}
+# Tabela de dados.
+ex14.13
+
+# Matriz do modelo e vetor resposta.
+# X <- model.matrix(~A * B * C * D, data = ex14.13)
+X <- with(ex14.13,
+          cbind(I = 1,
+                A, B, C, D,
+                AB = A * B,
+                AC = A * C,
+                BC = B * C,
+                AD = A * D,
+                BD = B * D,
+                CD = C * D,
+                ABC = A * B * C,
+                ABD = A * B * D,
+                ACD = A * C * D,
+                BCD = B * C * D,
+                ABCD = A * B * C * D))
+y <- cbind(ex14.13$y)
+dim(X)
+
+# Matriz do modelo ao lado do vetor da resposta.
+data.frame(X, "|" = "|", y, check.names = FALSE)
+
+k <- 4 # Número de fatores.
+r <- 2 # Número de repetições.
+
+# Contrates são o principal artefato. É apenas X'y.
+ctr <- crossprod(X, y)
+ctr
+
+# Estimativas dos parâmetros.
+# beta <- solve(crossprod(X), crossprod(X, y))
+beta <- diag(1/(r * 2^k), 2^k) %*% ctr
+beta
+
+# Estimativa dos parâmetros (por somatórios basicamente).
+ctr/(r * 2^k) # idem ao `beta`
+
+# Somas de quadrados.
+tail(ctr, n = -1)^2/(r * 2^k)
+
+# Valores ajustados para cada ponto experimental.
+ex14.13$hy <- X %*% beta
+
+# Resíduos.
+ex14.13$res <- with(ex14.13, y - hy)
+
+# Desvio padrão residual.
+s2 <- with(ex14.13, sum(res^2)/(nrow(X) - ncol(X)))
+s2
+
+# Erros padrões das estimativas dos parâmetros.
+# summary(m0)$coefficients
+sqrt(s2/(r * 2^k))
+
+# Erros padrões das médias nos pontos experimentais.
+# predict(m0, se.fit = TRUE)$se.fit
+sqrt(s2/r)
+
+# Matriz para a predição de um ponto qualquer.
+# Xnew <- model.matrix(~A * B * C,
+#                      data = data.frame(A = -1, B = 0.25, C = 0.5))
+Xnew <- with(data.frame(A = -0.5, B = 0.9, C = 0.5, D = 0),
+             cbind(I = 1,
+                   A, B, C, D,
+                   AB = A * B,
+                   AC = A * C,
+                   BC = B * C,
+                   AD = A * D,
+                   BD = B * D,
+                   CD = C * D,
+                   ABC = A * B * C,
+                   ABD = A * B * D,
+                   ACD = A * C * D,
+                   BCD = B * C * D,
+                   ABCD = A * B * C * D))
+Xnew
+
+# Predição em um ponto qualquer.
+Xnew %*% beta
+
+# Variância da predição em um ponto qualquer.
+# Xnew %*% (s2 * solve(crossprod(X))) %*% t(Xnew)
+Xnew %*% (s2 * diag(1/(r * 2^k), 2^k)) %*% t(Xnew)
+```
+
+### Análise feita com funções
+
+Nessa sessão serão usadas as funções do R para análise dos dados. Como é
+um modelo linear, usa-se a `lm()`.
+
+```{r}
+# Ajuste do modelo saturado.
+m0 <- lm(y ~ A * B * C * D, data = ex14.13)
+
+# Diagnóstico nos resíduos.
+par(mfrow = c(1, 2))
+plot(m0, which = 3)
+plot(m0, which = 2)
+layout(1)
+```
+
+Pela inspeção dos gráficos, não existem evidências contra o atendimento
+dos pressupostos. Obviamente que por serem poucas observações,
+dificulta-se detectar padrões característicos, como relação
+média-variância. O que pode ser comentado é que o fato da variável ser
+medida em escala discreta (soma de 20 termos com notas de 0 a 10), isso
+aparece no gráfico com resíduos padronizados de mesmo valor.
+
+```{r}
+# Quadro de análise de variância.
+anova(m0)
+
+# Estimativas.
+summary(m0)
+```
+
+Pela avaliação do quadro de análise de variância, não houve interações
+relevantes envolvendo C (nível de carbonação), apenas o efeito
+principal. Não houve efeito de B (xarope/água) em nenhum termo. Houve
+interação dupla entre A (adoçante) e D (temperatura). Portanto, alguns
+termos do modelo podem ser abandonados.
+
+```{r}
+# Ajuste do modelo reduzido apenas nos termos relevantes.
+m1 <- update(m0, . ~ C + A * D)
+anova(m1)
+
+# Variâncias residuais.
+c(s2_m0 = summary(m0)$sigma^2,
+  s2_m1 = summary(m1)$sigma^2)
+
+# Teste para nulidade dos termos abandonados.
+anova(m1, m0)
+```
+
+O modelo reduzido ajustado pelo abandono daqueles não relevantes não
+diferiu, conforme esperado, do modelo maximal. Neste exemplo, a
+variância residual do modelo `m1` foi menor que do modelo `m0`. Todavia,
+a diferença nessas estimativas é irrelevante. Poderia-se usar a
+estimativa pura da variância residual fornecida pelo modelo `m0`. Os
+resultados não devem mudar substancialmente.
+
+```{r}
+# Malha fina de valores para predição.
+pred <- expand.grid(A = seq(-1, 1, by = 0.1),
+                    C = seq(-1, 1, by = 0.5),
+                    D = seq(-1, 1, by = 0.1))
+pred <- cbind(pred,
+              as.data.frame(predict(m1,
+                                    newdata = pred,
+                                    se.fit = TRUE)[1:2]))
+
+# Gráfico da superfície média (valores ajustados).
+ggplot(data = pred,
+       mapping = aes(x = A, y = D, z = fit, fill = fit)) +
+    facet_wrap(facets = ~C) +
+    geom_tile() +
+    scale_fill_distiller(palette = "Spectral",
+                         direction = 1) +
+    geom_contour(color = "black") +
+    coord_equal()
+```
+
+A função apresenta um comportamento que, conforme antecipado, indica que
+o efeito de A (adoçante) depende do valor de D (temperatura) e vice
+versa. É possível entender melhor com gráfico de linhas.
+
+```{r}
+# Gráficos de linhas.
+ggplot(data = pred,
+       mapping = aes(x = A, y = fit, color = D, group = D)) +
+    facet_wrap(facets = ~C) +
+    geom_line() +
+    scale_color_distiller(palette = "Spectral")
+```
+
+Verifica-se que quanto maior o valor de D (temperatura), mais
+pronunciado é o efeito de A (adoçante). Diz-se que existe sinergismo
+entre esses fatores. O efeito de C (carbonação) é aditivo aos demais
+(nas escalas consideradas). Quanto maior C, maior o valor médio
+fixando-se os demais fatores.
+
+No fragmento a seguir outros gráficos são confeccionados apenas para
+ilustrar outras formas de visualização. Eu particularmente não aconselho
+o uso de gráficos 3D.
+
+```{r}
+# Esquema de cores para o gráfico com a `lattice`.
+colr <- RColorBrewer::brewer.pal(11, "Spectral")
+colr <- colorRampPalette(colr, space = "rgb")
+
+# Adicionando os contornos sobre a superfície. Requer funções externas.
+source(paste0("https://raw.githubusercontent.com/walmes/wzRfun/",
+              "master/R/panel.3d.contour.R"))
+
+# Gráfico de superfície em 3D com isolinhas (ainda não recomendo).
+wireframe(fit ~ A + D | C,
+          data = pred,
+          as.table = TRUE,
+          drape = TRUE,
+          col = rgb(0, 0, 0, 0.25),
+          panel.3d.wireframe = panel.3d.contour,
+          col.contour = 1,
+          type = "on",
+          col.regions = colr(100))
+
+# Valores preditos em cada ponto experimental.
+grid <- unique(ex14.13[, c("A", "C", "D")])
+grid$fit <- predict(m1, newdata = grid)
+arrange(grid, fit)
+```
+
+Pela inspeção dos gráficos, a melhor combinação experimental no sentido
+de aumentar a nota para o refrigerante é
+$$
+  \hat{y}_\text{opt} = f(A = 1, C = 1, D = 1) = `r round(max(grid$fit), 2)`.
+$$
+
+Dado que o efeito de C (carbonação) é aditivo aos demais, a condicação
+de operação $\{A = 1, D = 1\}$ é a melhor independente do nível de C, ou
+seja, independente da carbonação.
