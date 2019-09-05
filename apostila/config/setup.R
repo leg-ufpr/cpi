@@ -7,10 +7,8 @@ opts_chunk$set(cache = FALSE,
                fig.align = "center",
                eval.after= "fig.cap",
                engine.opts = list(template = "config/tikz2pdf.tex"),
-               # dpi = 96,
-               # dev = "png",
-               # dev.args = list(family = "Lato"),
-               dev.args = list(family = "Palatino"))
+               dev.args = list(png = list(family = "Roboto Condensed"),
+                               pdf = list(family = "Palatino")))
 options(width = 68)
 
 library(latticeExtra)
@@ -37,10 +35,10 @@ lattice.options(default.args = list(as.table = TRUE))
 
 # Verifica se o output é html, pdf , etc.
 isOutput <- function(format) {
-	fmt <- knitr::opts_knit$get("rmarkdown.pandoc.to")
-	if (missing(format)) {
-		fmt
-	} else {
+    fmt <- knitr::opts_knit$get("rmarkdown.pandoc.to")
+    if (missing(format)) {
+        fmt
+    } else {
         format[1] == fmt
     }
 }
