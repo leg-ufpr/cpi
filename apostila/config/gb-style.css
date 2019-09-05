@@ -62,7 +62,8 @@ table > caption {
 
 /* References ------------------------------ */
 
-.book .book-body .page-wrapper .page-inner div.references p {
+.book .book-body .page-wrapper .page-inner div.references p,
+div#refs div p {
     text-indent: -1em !important;
     margin-left: 1em;
     text-align: left;
