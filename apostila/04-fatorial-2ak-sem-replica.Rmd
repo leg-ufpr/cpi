@@ -134,20 +134,11 @@ ggplot(data = pred,
        mapping = aes(x = A, y = fit, color = C, group = C)) +
     facet_wrap(facets = ~D) +
     geom_line() +
-    scale_color_distiller(palette = "Spectral")
+    scale_color_distiller(palette = "BrBG")
 
 # Esquema de cores para o gráfico com a `lattice`.
 colr <- RColorBrewer::brewer.pal(11, "Spectral")
 colr <- colorRampPalette(colr, space = "rgb")
-
-# Gráfico de contornos de nível.
-contourplot(fit ~ A + C | D,
-            data = pred,
-            cuts = 20,
-            aspect = 1,
-            as.table = TRUE,
-            region = TRUE,
-            col.regions = colr)
 
 # Adicionando os contornos sobre a superfície. Requer funções externas.
 source(paste0("https://raw.githubusercontent.com/walmes/wzRfun/",
@@ -190,7 +181,6 @@ ex14.14 <- expand.grid(A = l, B = l, C = l, D = l, E = l,
 ex14.14$y <- c(7, 9, 34, 55, 6, 10, 30, 53, 10, 11, 30, 61, 8, 11, 33,
                60, 8, 12, 35, 62, 6, 12, 30, 55, 19, 15, 40, 65, 15, 20,
                34, 68)
-
 str(ex14.14)
 
 my_plot <- function(f1, f2, y, data) {
@@ -228,8 +218,8 @@ m0 <- lm(y ~ A * B * C * D * E, data = ex14.14)
 # NOTE: não é possível ver gráfico dos resíduos porque todos os resíduos
 # são 0.
 
-# Quadro de análise de variância.
-anova(m0)
+# # Quadro de análise de variância.
+# anova(m0)
 
 cfs <- coef(m0)[-1] %>%
     enframe()
@@ -302,7 +292,7 @@ ggplot(data = pred,
        mapping = aes(x = A, y = fit, color = B, group = B)) +
     facet_grid(facets = D ~ E) +
     geom_line() +
-    scale_color_distiller(palette = "Spectral")
+    scale_color_distiller(palette = "BrBG")
 
 # Esquema de cores para o gráfico com a `lattice`.
 colr <- RColorBrewer::brewer.pal(11, "Spectral")
@@ -313,7 +303,180 @@ source(paste0("https://raw.githubusercontent.com/walmes/wzRfun/",
               "master/R/panel.3d.contour.R"))
 
 # Gráfico de superfície em 3D com isolinhas (ainda não recomendo).
-wireframe(fit ~ A + B | D + E,
+latticeExtra::useOuterStrips(
+                  wireframe(fit ~ A + B | D + E,
+                            data = pred,
+                            as.table = TRUE,
+                            drape = TRUE,
+                            col = rgb(0, 0, 0, 0.25),
+                            panel.3d.wireframe = panel.3d.contour,
+                            col.contour = 1,
+                            type = "on",
+                            col.regions = colr(100)))
+
+# Valores preditos em cada ponto experimental.
+grid <- unique(ex14.14[, c("A", "B", "D", "E")])
+grid$fit <- predict(m3, newdata = grid)
+arrange(grid, fit)
+```
+
+### Próximo experimento
+
+Para obter a direção para um próximo experimento, será considerado o
+vetor gradiente no ponto $\{1, 1, 1, 1\}$ nos fatores A, B, D e E. O modelo final tem a seguinte equação para os valores preditos
+$$
+\hat{y} = f(x_1, x_2, x_4, x_5; \hat{\beta}) =
+  \hat{\beta}_0 +
+  \hat{\beta}_1 x_1 +
+  \hat{\beta}_2 x_2 +
+  \hat{\beta}_4 x_4 +
+  \hat{\beta}_5 x_5 +
+  \hat{\beta}_{12} x_1 x_2 +
+  \hat{\beta}_{45} x_4 x_5.
+$$
+
+Dessa forma, o vetor gradiente no ponto $\{1, 1, 1, 1\}$ nos fatores A,
+B, D e E é
+$$
+\begin{align*}
+\nabla f(x_1, x_2, x_4, x_5; \hat{\beta})\big |_{1, 1, 1, 1} &=
+  \left(
+    \frac{\mathrm{d} f}{\mathrm{d} x_1},
+    \frac{\mathrm{d} f}{\mathrm{d} x_2},
+    \frac{\mathrm{d} f}{\mathrm{d} x_4},
+    \frac{\mathrm{d} f}{\mathrm{d} x_5}
+  \right)\bigg |_{1, 1, 1, 1}\\
+  &= (\hat{\beta}_1 + \hat{\beta}_{12},
+      \hat{\beta}_2 + \hat{\beta}_{12},
+      \hat{\beta}_4 + \hat{\beta}_{45},
+      \hat{\beta}_5 + \hat{\beta}_{45}).
+\end{align*}
+$$
+
+O código abaixo determina o vetor gradiente na origem do delineamento e
+no ponto experimental *abde*. Como existe interação, o vetor gradiente
+muda com o ponto de suporte. Quando não há interação, o vetor gradiente
+é o mesmo em qualquer ponto.
+
+```{r}
+# Estimativas dos parâmetros.
+coef(m3)
+
+# Vetor gradiente em {0, 0, 0, 0}.
+rbind(coef(m3)["A"],
+      coef(m3)["B"],
+      coef(m3)["D"],
+      coef(m3)["E"])
+
+# Vetor gradiente em {1, 1, 1, 1}.
+rbind(coef(m3)["A"] + coef(m3)["A:B"],
+      coef(m3)["B"] + coef(m3)["A:B"],
+      coef(m3)["D"] + coef(m3)["D:E"],
+      coef(m3)["E"] + coef(m3)["D:E"])
+```
+
+## Rendimento de uma reação
+
+Esses dados são usados na seção 3.3 (página 129) do @neto2010fazer. O
+experimento é um fatorial $2^4$ para estudar o redimento (%) de uma
+reação em função dos fatores temperatura (A, 40 e 60 celsius), tipo de
+catalizador (B, I e II), concentração (C, 1 e 1.5 M) e pH (D, 7 e 6).
+
+```{r}
+l <- c(-1, 1)
+rend <- expand.grid(A = l, B = l, C = l, D = l,
+                    KEEP.OUT.ATTRS = FALSE)
+rend$y <- c(54, 85, 49, 62, 64, 94, 56, 70, 52, 87, 49, 64, 64, 94, 58,
+            73)
+```
+
+### Análise feita de forma operacional
+
+TODO
+
+### Análise feita com funções
+
+```{r}
+# Ajuste do modelo saturado (consome todos os graus de liberdade).
+m0 <- lm(y ~ A * B * C * D, data = rend)
+
+# NOTE: não é possível ver gráfico dos resíduos porque todos os resíduos
+# são 0.
+
+# # Quadro de análise de variância.
+# anova(m0)
+
+cfs <- coef(m0)[-1] %>%
+    enframe()
+
+# Gráfico quantil-quantil normal das estimativas.
+qq <- qqnorm(cfs$value, pch = 19, col = "orange")
+text(x = qq$x, y = qq$y,
+     labels = cfs$name,
+     pos = ifelse(qq$x < 0, 4, 2))
+
+ggplot(data = cfs,
+       mapping = aes(x = reorder(name, value), y = value)) +
+    geom_segment(aes(xend = name, yend = 0)) +
+    geom_segment(data = data.frame(x = 2.5, xend = 13.5, y = 2),
+                 color = "orange",
+                 arrow = arrow(length = unit(0.1, "inches"),
+                               angle = 90,
+                               ends = "both"),
+                 mapping = aes(x = x, y = y, xend = xend, yend = y)) +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+# Gráfico quantil-quantil normal nos efeitos estimados.
+# FrF2::DanielPlot(m0, pch = 19)
+```
+
+Pela análise do gráfico QQ-normal, os termos mais próximo de zero
+incluem as interações acima de 3 ordem. Pode-se então, para ter uma
+estimativa de variância residual, abandonar esses termos do modelo. Essa
+estimativa não é uma estimativa pura de variância residual mas sim
+inteiramente proveniente de termos omitidos do modelo.
+
+```{r}
+# Ajuste do modelo reduzido com termos de 3 grau.
+m1 <- update(m0, . ~ A + B + C + A:B)
+anova(m1)
+
+# Malha de valores para predição.
+pred <- expand.grid(A = seq(-1, 1, by = 0.1),
+                    B = c(-1, 1),
+                    C = seq(-1, 1, by = 0.1))
+pred <- cbind(pred,
+              as.data.frame(predict(m1,
+                                    newdata = pred,
+                                    se.fit = TRUE)[1:2]))
+
+# Gráfico da superfície média (valores ajustados).
+ggplot(data = pred,
+       mapping = aes(x = A, y = C, z = fit, fill = fit)) +
+    facet_grid(facets = ~ B) +
+    geom_tile() +
+    scale_fill_distiller(palette = "Spectral",
+                         direction = 1) +
+    geom_contour(color = "black") +
+    coord_equal()
+
+# Gráficos de linhas.
+ggplot(data = pred,
+       mapping = aes(x = A, y = fit, color = C, group = C)) +
+    facet_grid(facets = ~ B) +
+    geom_line() +
+    scale_color_distiller(palette = "BrBG")
+
+# Esquema de cores para o gráfico com a `lattice`.
+colr <- RColorBrewer::brewer.pal(11, "Spectral")
+colr <- colorRampPalette(colr, space = "rgb")
+
+# Adicionando os contornos sobre a superfície. Requer funções externas.
+source(paste0("https://raw.githubusercontent.com/walmes/wzRfun/",
+              "master/R/panel.3d.contour.R"))
+
+# Gráfico de superfície em 3D com isolinhas (ainda não recomendo).
+wireframe(fit ~ A + C | B,
           data = pred,
           as.table = TRUE,
           drape = TRUE,
@@ -324,29 +487,316 @@ wireframe(fit ~ A + B | D + E,
           col.regions = colr(100))
 
 # Valores preditos em cada ponto experimental.
-grid <- unique(ex14.14[, c("A", "B", "D", "E")])
-grid$fit <- predict(m3, newdata = grid)
+grid <- unique(rend[, c("A", "B", "C")])
+grid$fit <- predict(m1, newdata = grid)
 arrange(grid, fit)
 ```
 
-## Rendimento da produção de semicondutores
+### Próximo experimento
 
-Um experimento foi realizado em uma planta de fabricação de
-semicondutores, como um esforço para aumentar o rendimento. Cinco
-fatores, cada um com dois níveis, foram estudados. Os fatores (e níveis)
-foram A = abertura (pequena, grande), B = tempo de exposição (20% acima
-e abaixo do valor nominal), C = tempo de desenvolvimento (30 e 45
-segundos), D = dimensão da máscara (pequena, grande) e E = tempo de
-ataque químico (14.5 e 15.5 minutos). O experimento foi um fatorial
-$2^5$ sem réplicas.
+Para obter a direção para um próximo experimento, será considerado o
+vetor gradiente no ponto $\{1, 1\}$ nos fatores A e C considerando para
+B os dois tipos de catalizador, já que é um fator qualitativo. Por essa
+razão, não faz sentido um valor de B igual a 0 porque é uma variável
+qualitativa.
+
+O modelo final tem a seguinte equação para os valores preditos
+$$
+\hat{y} = f(x_1, x_2, x_3; \hat{\beta}) =
+  \hat{\beta}_0 +
+  \hat{\beta}_1 x_1 +
+  \hat{\beta}_2 x_2 +
+  \hat{\beta}_3 x_3 +
+  \hat{\beta}_{12} x_1 x_2.
+$$
+
+Dessa forma, o vetor gradiente no ponto $\{1, 1\}$ nos fatores A,
+C, para os dois níveis de B é
+$$
+\begin{align*}
+\nabla f(x_1, x_2, x_3; \hat{\beta}) &=
+  \left(
+    \frac{\mathrm{d} f}{\mathrm{d} x_1},
+    \frac{\mathrm{d} f}{\mathrm{d} x_2},
+    \frac{\mathrm{d} f}{\mathrm{d} x_3}
+  \right)\\
+\nabla f(x_1, x_2, x_3; \hat{\beta})\big |_{1, 1, 1} &=
+ (\hat{\beta}_1 + \hat{\beta}_{12},
+       \hat{\beta}_2 + \hat{\beta}_{12},
+       \hat{\beta}_3)\\
+\nabla f(x_1, x_2, x_3; \hat{\beta})\big |_{1, -1, 1} &=
+ (\hat{\beta}_1 - \hat{\beta}_{12},
+       -\hat{\beta}_2 - \hat{\beta}_{12},
+       \hat{\beta}_3)\\
+\end{align*}
+$$
+
+O código abaixo determina o vetor gradiente nos pontos experimentais
+*ac* e *abc* do fatorial $2^3$ em A, B e C . Como existe interação entre
+A e B, o vetor gradiente será diferente nestes dois pontos
+experimentais. No entanto, para um valor fixo de B, o vetor gradiente é
+o mesmo em qualquer ponto da superfície definida por A e C porque A e C
+não tem interação.
 
 ```{r}
+# Estimativas dos parâmetros.
+coef(m1)
+
+# Vetor gradiente em A e C no ponto {1, -1, 1}.
+gd_low <- rbind(coef(m1)["A"] - coef(m1)["A:B"],
+                coef(m1)["C"])
+gd_low
+
+# Vetor gradiente em A e C no ponto {1, 1, 1}.
+gd_hig <- rbind(coef(m1)["A"] + coef(m1)["A:B"],
+                coef(m1)["C"])
+gd_hig
+
+# Malha de valores para predição.
+pred <- expand.grid(A = seq(-1, 2, by = 0.1),
+                    B = c(-1, 1),
+                    C = seq(-1, 2, by = 0.1))
+pred <- cbind(pred,
+              as.data.frame(predict(m1,
+                                    newdata = pred,
+                                    se.fit = TRUE)[1:2]))
+
+# Quadrado para demarcar a região experimental.
+design_square <- data.frame(x0 = -1, x1 = 1, y0 = -1, y1 = 1)
+rect_design <- geom_rect(data = design_square,
+                         inherit.aes = FALSE,
+                         mapping = aes(xmin = x0, ymin = y0,
+                                       xmax = x1, ymax = y1),
+                         color = "black",
+                         fill = NA,
+                         linetype = 2)
+
+# Gradientes par cada nível de B.
+grad <- data.frame(B = c(-1, 1),
+                   x = 0,
+                   xend = c(gd_low[1], gd_hig[1])/10,
+                   y = 0,
+                   yend = c(gd_low[2], gd_hig[2])/10)
+
+# Gráfico da superfície média (valores ajustados).
+ggplot(data = pred,
+       mapping = aes(x = A, y = C, z = fit, fill = fit)) +
+    facet_grid(facets = ~ B) +
+    geom_tile() +
+    scale_fill_distiller(palette = "Spectral",
+                         direction = 1) +
+    geom_contour(color = "black", size = 0.2) +
+    rect_design +
+    geom_segment(data = grad,
+                 color = "purple",
+                 arrow = arrow(length = unit(0.1, "inches"),
+                               angle = 30,
+                               ends = "last"),
+                 mapping = aes(x = x,
+                               y = y,
+                               xend = xend,
+                               yend = yend,
+                               z = NULL, fill = NULL)) +
+    coord_equal()
+```
+
+## Separação de gases por adsorção
+
+No desenvolvimento em laboratório de um processo de enriquecimento de
+gases por adsorção, usou-se um planejamento $2^4$ para investigar a
+influência de quatro fatores na produtividade do adsorvente (mol kg^-1^
+ciclo^-1^).
+
+Table: (\#tab:niveis-separacao-gases) Tabela com fatores e respectivos
+níveis.
+
+| Fator                             | Nível baixo | Nível alto |
+|-----------------------------------|------------:|-----------:|
+| Pressão de adsorção (bar)         | 1,40        | 2,40       |
+| Pressão de dessorção (bar)        | 0,05        | 0,20       |
+| Vazão de alimentação (m^3^ h^-1^) | 0,10        | 0,30       |
+| Tempo de adsorção (s)             | 8           | 30         |
+
+```{r}
+# Criação dos dados.
 l <- c(-1, 1)
-ex14.17 <- expand.grid(A = l, B = l, C = l, D = l, E = l,
-                       KEEP.OUT.ATTRS = FALSE)
-# ex14.17$y <- scan()
-# dput(ex14.17$y)
-ex14.17$y <- c(7, 9, 34, 55, 16, 20, 40, 60, 8, 10, 32, 50, 18, 21, 44,
-               61, 8, 12, 35, 52, 15, 22, 45, 65, 6, 10, 30, 53, 15, 20,
-               41, 63)
+tb3a <- expand.grid(A = l, B = l, C = l, D = l,
+                    KEEP.OUT.ATTRS = FALSE)
+tb3a$y <- c(275, 315, 287, 355, 465, 585, 540, 630, 595, 655, 560, 675,
+            1150, 1300, 1250, 1400)/100
+```
+
+### Análise feita com funções
+
+```{r}
+# Ajuste do modelo saturado (consome todos os graus de liberdade).
+m0 <- lm(y ~ A * B * C * D, data = tb3a)
+
+# NOTE: não é possível ver gráfico dos resíduos porque todos os resíduos
+# são 0.
+
+# # Quadro de análise de variância.
+# anova(m0)
+
+cfs <- coef(m0)[-1] %>%
+    enframe()
+
+# Gráfico quantil-quantil normal das estimativas.
+qq <- qqnorm(cfs$value, pch = 19, col = "orange")
+text(x = qq$x, y = qq$y,
+     labels = cfs$name,
+     pos = ifelse(qq$x < 0, 4, 2))
+
+ggplot(data = cfs,
+       mapping = aes(x = reorder(name, value), y = value)) +
+    geom_segment(aes(xend = name, yend = 0)) +
+    geom_segment(data = data.frame(x = 1.5, xend = 10.5, y = 0.5),
+                 color = "orange",
+                 arrow = arrow(length = unit(0.1, "inches"),
+                               angle = 90,
+                               ends = "both"),
+                 mapping = aes(x = x, y = y, xend = xend, yend = y)) +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+# Gráfico quantil-quantil normal nos efeitos estimados.
+# FrF2::DanielPlot(m0, pch = 19)
+```
+
+Pela análise do gráfico QQ-normal, os termos mais próximo de zero
+incluem as interações acima de 3 ordem. Pode-se então, para ter uma
+estimativa de variância residual, abandonar esses termos do modelo. Essa
+estimativa não é uma estimativa pura de variância residual mas sim
+inteiramente proveniente de termos omitidos do modelo.
+
+```{r}
+# Ajuste do modelo reduzido com termos de 2 grau.
+m1 <- update(m0, . ~ (A + B + C + D)^2)
+anova(m1)
+
+# Refina mais o modelo.
+m2 <- update(m0, . ~ A + B + C + D + B:C + C:D)
+anova(m2)
+
+# Malha de valores para predição.
+pred <- expand.grid(A = c(-1, 1),
+                    B = c(-1, 1),
+                    C = seq(-1, 1, by = 0.1),
+                    D = seq(-1, 1, by = 0.1))
+pred <- cbind(pred,
+              as.data.frame(predict(m2,
+                                    newdata = pred,
+                                    se.fit = TRUE)[1:2]))
+
+# Gráfico da superfície média (valores ajustados).
+ggplot(data = pred,
+       mapping = aes(x = C, y = D, z = fit, fill = fit)) +
+    facet_grid(facets = A ~ B) +
+    geom_tile() +
+    scale_fill_distiller(palette = "Spectral",
+                         direction = 1) +
+    geom_contour(color = "black") +
+    coord_equal()
+
+# Gráficos de linhas.
+ggplot(data = pred,
+       mapping = aes(x = C, y = fit, color = D, group = D)) +
+    facet_grid(facets = A ~ B) +
+    geom_line() +
+    scale_color_distiller(palette = "BrBG")
+
+# Esquema de cores para o gráfico com a `lattice`.
+colr <- RColorBrewer::brewer.pal(11, "Spectral")
+colr <- colorRampPalette(colr, space = "rgb")
+
+# Adicionando os contornos sobre a superfície. Requer funções externas.
+source(paste0("https://raw.githubusercontent.com/walmes/wzRfun/",
+              "master/R/panel.3d.contour.R"))
+
+# Gráfico de superfície em 3D com isolinhas (ainda não recomendo).
+latticeExtra::useOuterStrips(
+                  wireframe(fit ~ C + D| A + B,
+                            data = pred,
+                            as.table = TRUE,
+                            drape = TRUE,
+                            col = rgb(0, 0, 0, 0.25),
+                            panel.3d.wireframe = panel.3d.contour,
+                            col.contour = 1,
+                            type = "on",
+                            col.regions = colr(100)))
+
+# Valores preditos em cada ponto experimental.
+grid <- unique(tb3a[, c("A", "B", "C", "D")])
+grid$fit <- predict(m2, newdata = grid)
+arrange(grid, fit)
+```
+
+### Próximo experimento
+
+Para obter a direção para um próximo experimento, será considerado o
+vetor gradiente no ponto $\{0, 0, 0, 0\}$ em todos os fatores.
+
+O modelo final tem a seguinte equação para os valores preditos
+$$
+\hat{y} = f(x_1, x_2, x_3, x_4; \hat{\beta}) =
+  \hat{\beta}_0 +
+  \hat{\beta}_1 x_1 +
+  \hat{\beta}_2 x_2 +
+  \hat{\beta}_3 x_3 +
+  \hat{\beta}_4 x_4 +
+  \hat{\beta}_{23} x_2 x_3 +
+  \hat{\beta}_{34} x_3 x_4.
+$$
+
+Dessa forma, o vetor gradiente no ponto central é simplesmente as
+estimativas dos parâmetros que descrevem os efeitos principais
+$$
+\begin{align*}
+\nabla f(x_1, x_2, x_3, x_4; \hat{\beta}) &=
+  \left(
+    \frac{\mathrm{d} f}{\mathrm{d} x_1},
+    \frac{\mathrm{d} f}{\mathrm{d} x_2},
+    \frac{\mathrm{d} f}{\mathrm{d} x_3},
+    \frac{\mathrm{d} f}{\mathrm{d} x_4}
+  \right)\\
+\nabla f(x_1, x_2, x_3, x_4; \hat{\beta})\big |_{0, 0, 0, 0} &=
+ (\hat{\beta}_1,
+  \hat{\beta}_2,
+  \hat{\beta}_3,
+  \hat{\beta}_4).
+\end{align*}
+$$
+
+O fragmento abaixo calcula pontos na direção indicada pelo vetor
+gradiente. Novos experimentos podem ser feitos tendo esses valores como
+coordenadas do centro do experimento. Cabe ao experimentador decidir
+qual será o centro do experimento nessa direção e se o experimento irá
+manter a amplitude entre os níveis do fatores. O experimentador pode
+aumentar a diferença entre os níveis para avaliar uma região
+experimental mais ampla.
+
+```{r}
+# Vetor gradiente.
+coef(m1)[names(tb3a)[1:4]]
+
+# Valores que podem ser o centro de novos experimentos.
+delta <- seq(0, 2, by = 0.25)
+
+# Centro para novos experimentos.
+new_des <- outer(delta,
+                 coef(m1)[names(tb3a)[1:4]],
+                 FUN = "*")
+new_des
+
+# Para passar da escala codificada para escala real.
+decode <- function(z, xmin, xmax) {
+    r <- 0.5 * (xmax - xmin)
+    m <- 0.5 * (xmax + xmin)
+    z * r + m
+}
+
+# Centro de novos experimentos na escala original.
+cbind(A = decode(new_des[, "A"], 1.40, 2.40),
+      B = decode(new_des[, "B"], 0.05, 0.20),
+      C = decode(new_des[, "C"], 0.10, 0.30),
+      D = decode(new_des[, "D"],    8,   30))
 ```
