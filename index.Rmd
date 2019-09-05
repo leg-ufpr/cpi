@@ -1,6 +1,6 @@
 ---
 title: >
-  <div class="hidden">EMR<div>
+  <div class="hidden">CPI<div>
 bibliography: config/refs.bib
 csl: config/ABNT-UFPR-2011-Mendeley.csl
 output:

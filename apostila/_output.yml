@@ -3,7 +3,7 @@ bookdown::gitbook:
   highlight: haddock
   css: config/gb-style.css
   includes:
-    in_header: [config/MathJax.html]
+    in_header: [config/MathJax.html, config/replace-references-section-name.html]
     after_body: config/gb-footer.html
   config:
     toc:
