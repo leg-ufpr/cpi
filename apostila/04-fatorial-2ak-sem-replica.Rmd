@@ -1,5 +1,125 @@
 # Análise do fatorial 2^k^ sem repetições
 
+Quando o número de fatores $k$ é grande, o modelo contém muitos
+parâmetros e o experimento muitos pontos experimentais. Fazer repetições
+dos pontos experimentais, embora seja interessante porque fornece uma
+estimativa pura da variância do erro, $r$-plica o número de unidades
+experimentais. Isso pode facilmente inviabilizar a investigação.
+
+Em muitos contexto, pode-se considerar o princípio da esparsidade que
+diz que o sistema é geralmente dominado pelos efeitos principais e
+interações de ordem baixa. As interações de ordem alta, e a medida que
+mais altas forem, contribuem menos, ao ponto de, a partir de certo grau,
+poderem ser negligenciadas [@montgomery2009estatistica]. Colocando de
+outra forma, para prever o resposta de um dado sistema ou fenômeno, a
+maior contribuição é proviniente dos efeitos principais, seguidos das
+interações duplas, e assim por diante. Dessa forma, os termos de alto
+podem ser vistos como estimadores do variância do erro.
+
+A realização de experimentos fatoriais $2^k$ é feita baseada nesse
+princípio. Como o número de parâmetros do modelo é $p = 2^k$, não restam
+graus de liberdade (ou desvios livres) para obter uma estimativa pura da
+variância do erro. Ou seja, o modelo é saturado e ajusta-se
+perfeitamente aos dados não produzindo desvios entre valores observados
+e ajustados. Sem uma estivativa para a variância do erro, não é possível
+testar o efeito dos termos no modelo pelo quadro de análise de
+variância. Aí é que se usa o princípio da esparsidade.
+
+Para obter uma estimativa de variância do erro, abandona-se os termos de
+maior ordem do modelo. Pode-se a interação de ordem $k$. Ou as de ordem
+$k$ e $k-1$. Ou ainda as de ordem $k$ até $k - 2$ conforme seja o valor
+de $k$. Essa estimativa de variância não é pura mas sim proveniente do
+abandono de termos de alta ordem que considera-se não ter efeito. Sob a
+hipótese de não haver efeito desses termos, o quadrado médio de cada um
+deles é um estimador independente da variância do erro. Recorde-se das
+esperanças matemáticas dos quadrados médios, $\text{E}(QM)$. A questão
+em aberto é: até que grau de interação pode-se abondonar para compor uma
+estimativa da variância do erro?
+
+Uma forma visual de decidir sobre os graus a serem abandonados é usar o
+gráfico quantil-quantil normal (qq-normal) com as estimativas dos
+efeitos. Qual a razão para isso? É a seguinte. Sob a hipótese nula, que
+estabelece não haver efeito de nenhum termo do modelo, os efeitos
+estimados (exceto intercepto) são variáveis aleatórias com média 0 e
+variância $\sigma^2/(r 2^k)$ (no caso, $r = 1$). Terem a mesma variância
+deve-se ao uso da escala codificada das variáveis. Com isso, se não
+houver efeito dos termos, o gráfico qq-normal não irá indicar
+afastamento da normalidade. Quando houver algum afastamento, é porque o
+efeito de algum termo é diferente de zero. Então é só etiquetar os
+pontos no gráfico e verificar o grau daquele conjunto de pontos que está
+mais próximo de zero para devidir o grau dos termos ou até mesmo os
+termos que serão abandonados do modelo para compor a variância do erro.
+
+É possível fazer simulações sob a hipótese nula para criar uma banda de
+confiança para o gráfico que auxilie determinar os efeitos mais
+salientes. O gráfico com bandas ou envelope é bastante usado como
+instrumento de diagnóstico em modelo de regressão. No entanto, existem
+várias formas de determinar as bandas. Umas por reamostragem dos dados
+observados, outras por simulação sob a hipótese nula, etc. Esta última é
+a que faz sentido para o contexto. Mais sobre as diferenças de abordagem
+para construção das bandas são vistas em CE 089 · Estatística
+Computacional II.
+
+O fragmento de código a seguir constrói o gráfico qq-normal e adiciona
+bandas de confiança, provenientes do intervalo de confiança quantílico
+para as estatísticas de ordem sob hipótese nula.
+
+```{r}
+par(mfrow = c(1, 2))
+
+# Simulando efeitos de um fatorial 2^4 sob hipótese nula e uma variância
+# qualquer conhecida para os efeitos, no caso Var(ef) = 1.
+ef <- rnorm(2^4 - 1, mean = 0, sd = 1)
+
+# Gráfico qq-normal.
+qqnorm(ef)
+qqline(ef)
+
+# Simula sob a hipótese nula.
+L <- replicate(n = 2999,
+               expr = {
+                   # Retorna a amostra ordenada.
+                   sort(rnorm(2^4 - 1, mean = 0, sd = 1))
+               })
+
+# Determina intervalos de confiança quantílicos para cada esatística de
+# ordem.
+ic <- apply(cbind(L, sort(ef)),
+            MARGIN = 1,
+            FUN = quantile,
+            probs = c(0.025, 0.5, 0.975))
+
+# Gráfico do observado contra o resultado sob hipótese nula.
+qq <- qqnorm(ef)
+abline(h = 0, lty = 3, col = "gray")
+matlines(x = sort(qq$x), y = t(ic),
+         type = "l", lty = 2, col = 1)
+layout(1)
+```
+
+O gráfico qq-normal com envelope seria uma opção interessante, porém,
+não tem-se como determinar o evelope porque não se conhece a variância
+dos efeitos. Na simulação foi considerado como 1. Na prática a variância
+dos efeitos é $\sigma^2/(r 2^k)$. O valor de $r = 1$ e $k$ é
+conhecido. Mas o valor de $\sigma^2$ não é conhecido e não se dispõe de
+uma estivativa para ele. Afinal, o que está sendo discutido é justamente
+quais o termos abandonar para obter-se uma estimativa para
+$\sigma^2$. Portanto, usa-se o gráfico qq-normal sem o evelope porque
+não se tem todas as informações para construí-lo.
+
+A decisão sobre quais os termos ou graus abadonar será pela disposição
+dos termos no gráfico. Aqueles efeitos com estimativas mais próximas de
+zero são os candidatos naturais para serem abadonados.
+
+Depois que um certo número de termos for abandonado, será possível
+testar a significância dos termos mantidos pelo quadro de análise de
+variância. O fato dos efeitos serem ortogonais faz com que os efeitos
+associados aos termos mantidos não precisem ser reestimados devido ao
+abandono dos demais.
+
+Nos estudos de caso a seguir serão analisados dados de experimentos
+fatoriais $2^k$ sem réplicas para os pontos experimentais.
+
 ```{r, message = FALSE}
 library(tidyverse)
 library(lattice)
@@ -56,11 +176,98 @@ gridExtra::grid.arrange(
                my_plot("C", "D", "y", ex14.20))
 ```
 
+Os gráficos mostram um indicativo de efeito de A ou talvez interação de
+A com C e de A com D. Não parece haver efeito de B.
+
 ### Análise feita de forma operacional
 
-TODO
+```{r}
+# Matriz do modelo e vetor resposta.
+# X <- model.matrix(~A * B * C * D, data = ex14.20)
+X <- with(ex14.20,
+          cbind(I = 1,
+                A, B, C, D,
+                AB = A * B,
+                AC = A * C,
+                BC = B * C,
+                AD = A * D,
+                BD = B * D,
+                CD = C * D,
+                ABC = A * B * C,
+                ABD = A * B * D,
+                ACD = A * C * D,
+                BCD = B * C * D,
+                ABCD = A * B * C * D))
+y <- cbind(ex14.20$y)
+
+# Matriz do modelo ao lado do vetor da resposta.
+data.frame(X, "|" = "|", y, check.names = FALSE)
+
+k <- 4 # Número de fatores.
+r <- 1 # Número de repetições.
+
+# Contrates são o principal artefato. É apenas X'y.
+ctr <- crossprod(X, y)
+ctr
+
+# Estimativas dos parâmetros.
+# beta <- solve(crossprod(X), crossprod(X, y))
+beta <- diag(1/(r * 2^k), 2^k) %*% ctr
+beta
+
+# Estimativa dos parâmetros (por somatórios basicamente).
+ctr/(r * 2^k) # idem ao `beta`
+
+# Somas de quadrados.
+tail(ctr, n = -1)^2/(r * 2^k)
+
+# Valores ajustados para cada ponto experimental.
+ex14.20$hy <- X %*% beta
+
+# Resíduos.
+ex14.20$res <- with(ex14.20, y - hy)
+c(ex14.20$res) # ATTENTION: os resíduos são zero!
+
+# Desvio padrão residual.
+s2 <- with(ex14.20, sum(res^2)/(nrow(X) - ncol(X)))
+s2
+
+# NOTE: não tem como estimar a variância residual (pura) porque não tem
+# repetições.
+
+# Gráfico quantil-quantil normal das estimativas.
+qq <- qqnorm(c(beta)[-1], pch = 19, col = "orange")
+qqline(c(beta)[-1], lty = 2)
+text(x = qq$x, y = qq$y,
+     labels = colnames(X)[-1],
+     pos = ifelse(qq$x < 0, 4, 2))
+rect(-1.04, -0.49, 0.61, 0.63, lty = 2, border = "red")
+
+# Manterndo termos de interação até a dupla.
+j <- nchar(colnames(X)) <= 2
+X1 <- X[, j]
+beta1 <- beta[j, ]
+
+# Valores ajustados com o modelo reduzido.
+ex14.20$hy <- X1 %*% beta1
+
+# Resíduos.
+ex14.20$res <- with(ex14.20, y - hy)
+c(ex14.20$res)
+
+# Desvio padrão residual.
+s2 <- with(ex14.20, sum(res^2)/(nrow(X1) - ncol(X1)))
+s2
+```
 
 ### Análise feita com funções
+
+Na `lm()` declaramos o modelo contendos todos os termos possível, ou
+seja, todos os termos até a interação de ordem $k = 4$. Com isso serão
+estimados $2^4$ e tem-se $2^k$ observações já que os pontos
+experimentais não possuem repetição. É sabido que esse modelo irá se
+ajustar perfeitamente aos dados e não se terá uma estimativa da
+variância do erro para testar os efeitos.
 
 ```{r}
 # Ajuste do modelo saturado (consome todos os graus de liberdade).
@@ -71,7 +278,15 @@ m0 <- lm(y ~ A * B * C * D, data = ex14.20)
 
 # Quadro de análise de variância.
 anova(m0)
+```
 
+Conforme comentado, o quadro de análise de variância contém as somas de
+quadrados porém, a soma de quadrados dos resíduos é zero. Com isso não
+pode obter a estatística F para testar o efeito dos termos do modelo. A
+abordagem do gráfico qq-normal será usada para indicar refinamentos no
+modelo.
+
+```{r}
 cfs <- coef(m0)[-1] %>%
     enframe()
 
@@ -101,6 +316,11 @@ estimativa de variância residual, abandonar esses termos do modelo. Essa
 estimativa não é uma estimativa pura de variância residual mas sim
 inteiramente proveniente de termos omitidos do modelo.
 
+Os dois modelos a seguir são refinamentos consecutivos do modelo
+inicial. O primeiro considera todos os efeitos principais e as
+interações duplas com o fator A. O segundo, baseado no quadro de ANOVA
+do primeiro, abandona o termos do fator B que não se mostrou relevante.
+
 ```{r}
 # Ajuste do modelo reduzido, com alguns termos de até 2 grau.
 m1 <- update(m0, . ~ A * (B + C + D))
@@ -109,7 +329,21 @@ anova(m1)
 # Mais reduzido ainda com a remoção de B.
 m2 <- update(m0, . ~ A * (C + D))
 anova(m2)
+```
 
+Gráficos serão usados para estudar o efeito dos fatores no comportamento
+da resposta. Uma malha fina nos níveis dos fatores é gerada e o valor
+predito é calculado para cada ponto. Assim, gráficos de contornos ou
+superfície podem ser usados para exibir a relação entre os fatores.
+
+Como a interação AC tem maior efeito que AD, optou-se por fazer os
+gráficos de superfície considerando esse par de fatores para cada nível
+fixado do fator D. Todavia, outras escolhas sejam igualmente
+interessantes de inspecionar. Não necessariamente a escolha tem que ser
+baseada no tamanho do efeito.  É importante que haja sentido prático em
+estudá-la ou compreendê-la.
+
+```{r}
 # Malha de valores para predição.
 pred <- expand.grid(A = seq(-1, 1, by = 0.1),
                     C = seq(-1, 1, by = 0.1),
@@ -135,7 +369,17 @@ ggplot(data = pred,
     facet_wrap(facets = ~D) +
     geom_line() +
     scale_color_distiller(palette = "BrBG")
+```
 
+Os gráficos indicam bem a existência de interação de A com cada um dos
+fatores C e D. Para um mesmo nível de D, as linhas que descrevem o
+efeito de A para níveis de C mudam de inclinação com a variação de
+C. Para um mesmo nível de C (linha de mesma cor), a inclinação que
+representa o efeito de A muda com os níveis de D.
+
+Os gráfico a seguir exibe a relação em uma superfície 3D.
+
+```{r}
 # Esquema de cores para o gráfico com a `lattice`.
 colr <- RColorBrewer::brewer.pal(11, "Spectral")
 colr <- colorRampPalette(colr, space = "rgb")
@@ -145,8 +389,10 @@ source(paste0("https://raw.githubusercontent.com/walmes/wzRfun/",
               "master/R/panel.3d.contour.R"))
 
 # Gráfico de superfície em 3D com isolinhas (ainda não recomendo).
-wireframe(fit ~ A + C | D,
+wireframe(fit ~ A + C | factor(D),
           data = pred,
+          strip = strip.custom(strip.names = c(TRUE, TRUE),
+                               var.name = "D"),
           as.table = TRUE,
           drape = TRUE,
           col = rgb(0, 0, 0, 0.25),
@@ -160,6 +406,23 @@ grid <- unique(ex14.20[, c("A", "C", "D")])
 grid$fit <- predict(m2, newdata = grid)
 arrange(grid, fit)
 ```
+
+Dentro da região experimental, sob os pontos de suporte, o maior valor
+predito para a resposta está sob a condição de operação $\{1, -1, 1\}$
+em A, C e D, respectivamente. Isso significa então que a o rendimento é
+maior para um nível alto de tempo (A), nível baixo de pressão (C) e
+nível alto de temperatura (D). Esse é portanto, a condição de ótimo
+local, restrito à região experimental. Questiona-se se não haveriam
+condições experimentais além da região atual que fossem ainda melhores.
+
+É possível extrapolar, a partir o modelo ajustado, e predizer a resposta
+para condições de operação além daquelas investigadas. Por outro lado,
+essas previsões que são extrapolações podem estar equivocadas e somente
+novos experimentos feitos na região de interesse que irão dar uma
+resposta segura sobre o redimento da reação. Pode-se definir uma nova
+região experimental a partir da direção de maior inclinação, considerada
+direção mais promissora, para encontrar o máximo do rendimento com base
+no modelo que foi ajustado.
 
 ## Resistência à compressão do concreto
 
@@ -207,7 +470,8 @@ gridExtra::grid.arrange(
 
 ### Análise feita de forma operacional
 
-TODO
+Veja o código disponível na primeira seção. Apenas é necessário fazer a
+adaptação para o número de fatores.
 
 ### Análise feita com funções
 
@@ -226,9 +490,11 @@ cfs <- coef(m0)[-1] %>%
 
 # Gráfico quantil-quantil normal das estimativas.
 qq <- qqnorm(cfs$value, pch = 19, col = "orange")
+qqline(cfs$value, lty = 2)
 text(x = qq$x, y = qq$y,
      labels = cfs$name,
      pos = ifelse(qq$x < 0, 4, 2))
+rect(-1.29, -0.852, 0.994, 1.515, lty = 2, border = "red")
 
 ggplot(data = cfs,
        mapping = aes(x = reorder(name, value), y = value)) +
@@ -323,7 +589,8 @@ arrange(grid, fit)
 ### Próximo experimento
 
 Para obter a direção para um próximo experimento, será considerado o
-vetor gradiente no ponto $\{1, 1, 1, 1\}$ nos fatores A, B, D e E. O modelo final tem a seguinte equação para os valores preditos
+vetor gradiente no ponto $\{1, 1, 1, 1\}$ nos fatores A, B, D e E. O
+modelo final tem a seguinte equação para os valores preditos
 $$
 \hat{y} = f(x_1, x_2, x_4, x_5; \hat{\beta}) =
   \hat{\beta}_0 +
@@ -392,7 +659,8 @@ rend$y <- c(54, 85, 49, 62, 64, 94, 56, 70, 52, 87, 49, 64, 64, 94, 58,
 
 ### Análise feita de forma operacional
 
-TODO
+Veja o código disponível na primeira seção. Apenas é necessário fazer a
+adaptação para o número de fatores.
 
 ### Análise feita com funções
 
