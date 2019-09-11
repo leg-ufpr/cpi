@@ -1,0 +1,378 @@
+# Fatorial 2^k^ com pontos centrais
+
+Pontos chave:
+
+  1. Fatorial com replicação: estimativa do erro puro. Além disso, não
+     há mecanísmos para diagnosticar se a suposição de linearidade da
+     resposta em relação aos fatores é apropriada na região experimental
+     estudada.
+  2. Fatorial sem replicação: não possui estimativa de erro puro. E
+     também não é possível diagnosticar falta de ajuste.
+  3. Solução: adicionar pontos centrais!
+     1. Eles permitem obter uma estimativa pura da variância residual
+        construida a partir dos desvios das repetições em relação a
+        média do ponto central.
+     2. Eles permitem testar a hipótese de curvatura nula ou indicar a
+        falta a falta de ajuste. Isso quer dizer que, baseado na
+        diferença entre o valor predito para o ponto experimental e o
+        valor observado, pode-se testar se há desvio da hipótese de
+        relação linear da resposta com os fatores dentro da região
+        experimental. É um teste baseado em um grau de liberdade.
+     3. Não é possível aplicar quando algum dos fatores é qualitativo já
+        que o ponto 0 representa um nível intermediário entre os níveis
+        -1 e 1.
+     4. Embora seja possível detectar a presença de curvatura da função,
+        apenas com os pontos fatoriais e centrais não é possível ajustar
+        um modelo com termos para acomodar a curvatura. É necessário,
+        portanto, que o delineamento tenha valores observados em novos
+        pontos dentro da região experimental.
+
+(ref:fatorial-ponto-central-2a2) Experimento fatorial $2^2$ com 5 pontos
+adicionais. Os valores anotados correspondem a resposta medida em cada
+condição experimental. Os dados fazem serão analizados na próxima seção.
+
+```{r fatorial-ponto-central-2a2, echo = FALSE, out.width = "60%", fig.cap = '(ref:fatorial-ponto-central-2a2)'}
+knitr::include_graphics("./img/fatorial_ponto_central-2a2.png")
+```
+
+(ref:factorial-2k-lack-of-fit) Experimento fatorial $2^2$ com ponto
+central. A figura ilustra que a discrepância entre a média amostral no
+ponto central $\bar{y}_{pc}$ é o valor ajustado no ponto central
+$\hat{y}$ indica o tamanho da falta de ajuste (LOF: *lack of fit*).
+
+```{r factorial-2k-lack-of-fit, echo = FALSE, out.width = "75%", fig.cap = '(ref:factorial-2k-lack-of-fit)'}
+knitr::include_graphics("./img/factorial-2k-lack-of-fit.png")
+```
+
+```{r, message = FALSE}
+library(tidyverse)
+```
+
+## Rendimento de um processo químico
+
+Um engenheiro químico está estudando a conversão percentual ou o
+rendimento de um processo. Há duas variáveis de interesse: o tempo e a
+temperatura de reação. Pelo fato de não ter certeza em relação à
+linearidade da região de exploração, o engenheiro decide conduzir um
+planejamento $2^2$ com uma única réplica dos pontos experimentais
+aumentado com 5 pontos centrais. O planejamento com os dados de
+rendimento são mostrados na Figura
+\@ref(fig:fatorial-ponto-central-2a2).
+
+Esses dados são do exemplo 14-6, na página 353 do
+@montgomery2009estatistica. Os mesmos estão na página 273, seção 6-6 do
+@montgomery2001design.
+
+```{r}
+# Construção dados dados.
+da <- rbind(expand.grid(tem_reac = c(30, 40),
+                        temper = c(150, 160),
+                        lof = 0,
+                        KEEP.OUT.ATTRS = FALSE),
+            list(rep(35, 5),
+                 rep(155, 5),
+                 rep(1, 5)))
+da$rend <- c(393, 409, 400, 415,
+             406, 402, 407, 405, 403)/10
+
+gg1 <-
+ggplot(data = da,
+       mapping = aes(x = tem_reac, y = rend, color = factor(temper))) +
+    geom_point() +
+    stat_summary(mapping = aes(group = 1),
+                 color = 1,
+                 geom = "line",
+                 fun.y = "mean")
+gg2 <-
+ggplot(data = da,
+       mapping = aes(x = temper, y = rend, color = factor(tem_reac))) +
+    geom_point() +
+    stat_summary(mapping = aes(group = 1),
+                 color = 1,
+                 geom = "line",
+                 fun.y = "mean")
+gridExtra::grid.arrange(gg1, gg2, ncol = 1)
+
+# Para codificar as variáveis.
+codify <- function(x, extremes = range(x)) {
+    r <- extremes
+    m <- mean(r)
+    s <- 0.5 * diff(r)
+    (x - m)/s
+}
+da$A <- codify(da$tem_reac)
+da$B <- codify(da$temper)
+
+# Ajuste do modelo com pontos centrais.
+m0 <- lm(terms(rend ~ A * B + lof, keep.order = TRUE),
+         data = da)
+anova(m0)
+
+# Estimativa pura da variância do erro.
+var(da$rend[da$lof == 1])
+anova(m0)["Residuals", "Mean Sq"]
+
+# Médias dos pontos fatoriais e centrais.
+m <- with(da, tapply(rend, lof, mean))
+
+# Diferença entre as médias é o termo de falta de ajuste.
+c(m, diff = unname(diff(m)))
+coef(m0)["lof"]
+```
+
+## Exemplo · 2
+
+Os dados analizados a seguir foram analizados em materiais de ofertas
+anteriores da disciplina. Visite
+<https://gitlab.c3sl.ufpr.br/walmes/ce074/blob/master/scripts/aula10.R>
+para ver o arquivo original.
+
+```{r}
+#-----------------------------------------------------------------------
+# Experimento fatorial 2^2 + 3 pontos centrais.
+
+fat <- expand.grid(C = c(45, 55),
+                   V = c(90, 110),
+                   lof = 0)
+cen <- data.frame(C = rep(50, 3),
+                  V = rep(100, 3),
+                  lof = 1)
+da <- rbind(fat, cen)
+da$y <- c(69, 59, 78, 67, 68, 66, 69)
+
+gg1 <-
+ggplot(data = da,
+       mapping = aes(x = C, y = y, color = factor(V))) +
+    geom_point() +
+    stat_summary(mapping = aes(group = 1),
+                 color = 1,
+                 geom = "line",
+                 fun.y = "mean")
+gg2 <-
+ggplot(data = da,
+       mapping = aes(x = V, y = y, color = factor(C))) +
+    geom_point() +
+    stat_summary(mapping = aes(group = 1),
+                 color = 1,
+                 geom = "line",
+                 fun.y = "mean")
+gridExtra::grid.arrange(gg1, gg2, ncol = 1)
+
+# Variáveis codificadas.
+da$x1 <- (da$C - 50)/5
+da$x2 <- (da$V - 100)/10
+
+# Ajuste do modelo com pontos centrais.
+m0 <- lm(terms(y ~ x1 * x2 + lof, keep.order = TRUE),
+         data = da)
+anova(m0)
+
+# Estimativa pura da variância do erro.
+var(da$y[da$lof == 1])
+anova(m0)["Residuals", "Mean Sq"]
+
+# Médias dos pontos fatoriais e centrais.
+m <- with(da, tapply(y, lof, mean))
+
+# Diferença entre as médias é o termo de falta de ajuste.
+c(m, diff = unname(diff(m)))
+coef(m0)["lof"]
+```
+
+## Fabricação de semicondutores
+
+A planilha eletrônica com os dados usados em @montgomery2012design está
+disponível para download no endereço
+<http://bcs.wiley.com/he-bcs/Books?action=resource&bcsId=7009&itemId=1118146921&resourceId=26715&chapterId=75851>. Os
+dados no fragmento de código abaixo estão na guia "Chapter 06" com nome
+"Problem 23" pois correspondem ao exercício 6-23.
+
+Os processos de fabricação de semicondutores têm fluxos de montagem
+longos e complexos. Portanto, marcas de matriz e leitores automatizados
+de matriz 2D são usados ​​em várias etapas do processo nas
+fábricas. Marcas de matriz ilegíveis afetam negativamente as taxas de
+operação de fábrica porque é necessária a entrada manual de dados da
+peça antes que a fabricação possa retomar. Um experimento fatorial $2^4$
+foi conduzido para desenvolver uma marca de laser de matriz 2D em uma
+cobertura de metal que protege uma matriz montada em substrato. Os
+fatores de design são potência do laser (A: 9 e 13 W), frequência de
+pulso do laser (B: 4000 e 12000 Hz), tamanho da célula da matriz (C:
+0,07 e 0,12 polegadas) e velocidade de gravação (D: 10 e 20
+polegadas/segundo). A variável de resposta é a correção de erro não
+utilizada (UEC). O experimento teve ainda a adição de pontos centrais
+para compor uma estimativa pura do erro experimental e permitir
+diagnosticar falta de ajuste. Um UEC de 0 representa a leitura mais
+baixa que ainda resulta em uma matriz decodificável, enquanto um valor
+de 1 é a leitura mais alta.
+
+```{r}
+txt <- "Laser Power	Pulse Frequency	Cell Size	Writing Speed	UEC
+-1	-1	-1	-1	0,75
+1	-1	-1	-1	0,98
+-1	1	-1	-1	0,72
+1	1	-1	-1	0,98
+-1	-1	1	-1	0,63
+1	-1	1	-1	0,67
+-1	1	1	-1	0,65
+1	1	1	-1	0,8
+-1	-1	-1	1	0,6
+1	-1	-1	1	0,81
+-1	1	-1	1	0,63
+1	1	-1	1	0,79
+-1	-1	1	1	0,56
+1	-1	1	1	0,65
+-1	1	1	1	0,55
+1	1	1	1	0,69
+0	0	0	0	0,98
+0	0	0	0	0,95
+0	0	0	0	0,93
+0	0	0	0	0,96"
+
+da <- read.table(textConnection(txt),
+                 header = TRUE, sep = "\t", dec = ",")
+str(da)
+
+da %>%
+    gather("fator", "valor", 1:4) %>%
+    ggplot(mapping = aes(x = valor, y = UEC)) +
+    facet_wrap(facets = ~fator) +
+    geom_point() +
+    stat_summary(mapping = aes(group = 1),
+                 color = 1,
+                 geom = "line",
+                 fun.y = "mean")
+
+names(da) <- c(LETTERS[1:4], "y")
+da$lof <- as.integer(da$A == 0)
+
+# Ajuste do modelo com pontos centrais.
+m0 <- lm(terms(y ~ A * B * C * D + lof, keep.order = TRUE),
+         data = da)
+anova(m0)
+
+# Estimativa pura da variância do erro.
+var(da$y[da$lof == 1])
+anova(m0)["Residuals", "Mean Sq"]
+
+# Médias dos pontos fatoriais e centrais.
+m <- with(da, tapply(y, lof, mean))
+
+# Diferença entre as médias é o termo de falta de ajuste.
+c(m, diff = unname(diff(m)))
+coef(m0)["lof"]
+
+#
+```
+
+## Taxa de filtragem
+
+Um produto químico é produzido em um vaso de pressão. Um experimento
+fatorial é realizado na planta piloto para estudar os fatores que podem
+influenciar a taxa de filtração deste produto. Os quatro fatores são
+temperatura (A), pressão (B), concentração de formaldeído (C) e taxa de
+agitação (D). Cada fator está presente em dois níveis. O engenheiro do
+processo está interessado em maximizar a taxa de filtragem.
+
+A planilha eletrônica com os dados usados em @montgomery2012design está
+disponível para download no endereço
+<http://bcs.wiley.com/he-bcs/Books?action=resource&bcsId=7009&itemId=1118146921&resourceId=26715&chapterId=75851>. Os
+dados no fragmento de código abaixo estão na guia "Chapter 06" com nome
+"Problem 23". Eles correspondem ao exercício 6-33 que usam os dados do
+exemplo 6.2.
+
+Dataset disponível em
+<https://gitlab.c3sl.ufpr.br/walmes/ce074/blob/master/scripts/book_example_hw_dataset.xlsx>,
+aba "Chapter 06" com nome "Problem 33".
+
+```{r}
+txt <- "Temperature	Pressure	Concentration	Stirring Rate	Filtration Rate
+-1	-1	-1	-1	45
+1	-1	-1	-1	71
+-1	1	-1	-1	48
+1	1	-1	-1	65
+-1	-1	1	-1	68
+1	-1	1	-1	60
+-1	1	1	-1	80
+1	1	1	-1	65
+-1	-1	-1	1	43
+1	-1	-1	1	100
+-1	1	-1	1	45
+1	1	-1	1	104
+-1	-1	1	1	75
+1	-1	1	1	86
+-1	1	1	1	70
+1	1	1	1	96
+0	0	0	0	73
+0	0	0	0	75
+0	0	0	0	71
+0	0	0	0	69
+0	0	0	0	76"
+
+#
+```
+
+## Exemplo 5
+
+Dataset disponível em
+<https://gitlab.c3sl.ufpr.br/walmes/ce074/blob/master/scripts/book_example_hw_dataset.xlsx>,
+aba "Chapter 06" com nome "Problem 37".
+
+```{r}
+txt <- "A	B	C	D	Resistivity
+-1	-1	-1	-1	1,92
+1	-1	-1	-1	11,28
+-1	1	-1	-1	1,09
+1	1	-1	-1	5,75
+-1	-1	1	-1	2,13
+1	-1	1	-1	9,53
+-1	1	1	-1	1,03
+1	1	1	-1	5,35
+-1	-1	-1	1	1,6
+1	-1	-1	1	11,73
+-1	1	-1	1	1,16
+1	1	-1	1	4,68
+-1	-1	1	1	2,16
+1	-1	1	1	9,11
+-1	1	1	1	1,07
+1	1	1	1	5,3
+0	0	0	0	8,15
+0	0	0	0	7,63
+0	0	0	0	8,95
+0	0	0	0	6,48"
+
+#
+```
+
+## Exemplo 6
+
+Dataset disponível em
+<https://gitlab.c3sl.ufpr.br/walmes/ce074/blob/master/scripts/book_example_hw_dataset.xlsx>,
+aba "Chapter 06" com nome "Problem 41".
+
+```{r}
+txt <- "Glucose (g dm-3)	NH4NO3 (g dm-3)	FeSO4 (g dm-3 x 10-4)	MnSO4 (g dm-3 x 10-2)	y (CMC)-1
+20	2	6	4	23
+60	2	6	4	15
+20	6	6	4	16
+60	6	6	4	18
+20	2	30	4	25
+60	2	30	4	16
+20	6	30	4	17
+60	6	30	4	26
+20	2	6	20	28
+60	2	6	20	16
+20	6	6	20	18
+60	6	6	20	21
+20	2	30	20	36
+60	2	30	20	24
+20	6	30	20	33
+60	6	30	20	34
+40	4	18	12	35
+40	4	18	12	35
+40	4	18	12	35
+40	4	18	12	36
+40	4	18	12	36
+40	4	18	12	34"
+
+#
+```
