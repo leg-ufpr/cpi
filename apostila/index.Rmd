@@ -5,6 +5,10 @@ author:
     affiliation: Departamento de Estatística · UFPR
     email: walmes@ufpr.br
     www: leg.ufpr.br/~walmes
+  - name: Fernando de Pol Mayer
+    affiliation: Departamento de Estatística · UFPR
+    email: fernando.mayer@ufpr.br
+    www: leg.ufpr.br/~fernandomayer
 date: "Atualizado em `r format(Sys.Date(), format = '%d de %B de %Y')`"
 #lang: pt
 csl: config/ABNT_UFPR_2011-Mendeley.csl
