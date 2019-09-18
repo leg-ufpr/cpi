@@ -89,6 +89,24 @@ O fatorial $2^k$ é interessante para
 
 As 5 situações acima descritas serão estudadas nesse curso.
 
+(ref:cubos-fatoriais-2a3) Experimento em planejamento fatorial $2^3$.
+
+```{r cubos-fatoriais-2a3, echo = FALSE, out.width = "60%", fig.cap = '(ref:cubos-fatoriais-2a3)'}
+knitr::include_graphics("./img/cubos-fatoriais-2a3.png")
+```
+
+(ref:cubos-fatoriais-2a4) Experimento em planejamento fatorial $2^4$.
+
+```{r cubos-fatoriais-2a4, echo = FALSE, out.width = "90%", fig.cap = '(ref:cubos-fatoriais-2a4)'}
+knitr::include_graphics("./img/cubos-fatoriais-2a4.png")
+```
+
+(ref:cubos-fatoriais-2a5) Experimento em planejamento fatorial $2^5$.
+
+```{r cubos-fatoriais-2a5, echo = FALSE, out.width = "90%", fig.cap = '(ref:cubos-fatoriais-2a5)'}
+knitr::include_graphics("./img/cubos-fatoriais-2a5.png")
+```
+
 ## Modelo estatístico
 
 Considerando o experimento fatorial $2^k$ completo, o modelo estatístico

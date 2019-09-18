@@ -136,6 +136,13 @@ $\hat{y}$ indica o tamanho da falta de ajuste (LOF: *lack of fit*).
 knitr::include_graphics("./img/factorial-2k-lack-of-fit.png")
 ```
 
+(ref:decision-about-curvature) Ações em relação a rejeição da hipótese
+sobre a curvatura na região experimental.
+
+```{r decision-about-curvature, echo = FALSE, out.width = "80%", fig.cap = '(ref:decision-about-curvature)'}
+knitr::include_graphics("./img/decision-about-curvature.png")
+```
+
 ```{r, message = FALSE}
 library(lattice)
 library(tidyverse)

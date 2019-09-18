@@ -57,6 +57,24 @@ confundimento.
 knitr::include_graphics("./img/cubos-fatoriais-confundimento-2a3-em-2-blocos.png")
 ```
 
+(ref:fatorial-2a3-confundimento-abc) Ilustração da alocação dos pontos
+experimentais de um planejamento fatorial $2^3$ em 2 blocos usando para
+o confundimento com os blocos a interação tripla, ou seja, com o
+contraste de definição $I = ABC$.
+
+```{r fatorial-2a3-confundimento-abc, echo = FALSE, out.width = "75%", fig.cap = '(ref:fatorial-2a3-confundimento-abc)'}
+knitr::include_graphics("./img/fatorial-2a3-confundimento-abc.png")
+```
+
+(ref:fatorial-2a3-confundimento-ab-ac) Ilustração da alocação dos pontos
+experimentais de um planejamento fatorial $2^3$ em 4 blocos usando para
+o confundimento com os blocos duas interações duplas, no caso, com os
+contrastes de definição $I_1 = AB$ e $I_2 = AC$.
+
+```{r fatorial-2a3-confundimento-ab-ac, echo = FALSE, out.width = "75%", fig.cap = '(ref:fatorial-2a3-confundimento-ab-ac)'}
+knitr::include_graphics("./img/fatorial-2a3-confundimento-ab-ac.png")
+```
+
 TODO a análise do experimento com blocos completos...
 
 TODO tabela de sinais ...
