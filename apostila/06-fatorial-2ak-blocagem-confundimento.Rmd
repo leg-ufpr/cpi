@@ -135,3 +135,53 @@ bloco I, enquanto que `a`, `b`, `c`, e `abc` são corridas no
 bloco 2. Veja que esta atribuição é idêntica àquela realizada ao se
 utilizar a coluna ABC da tabela de sinais. **O contraste de definição é
 apenas uma generalização** daquele método.
+
+## TODO FIXME
+
+```{r, message = FALSE}
+library(tidyverse)
+```
+
+```{r}
+# Criando um experimento 2^4 em dois blocos usando I = ABCD.
+k <- 4
+da <- do.call(expand.grid,
+              setNames(replicate(k, c(-1, 1), simplify = FALSE),
+                       LETTERS[1:k]))
+
+# Cria os blocos usando I = ABCD.
+da$blc <- with(da,
+               factor(A * B * C * D, labels = c("II", "I")))
+
+# Ordena para ficar com a mesma disposição do livro.
+da <- da[with(da, order(blc)), ]
+da
+
+# Adiciona o vetor da resposta.
+da$y <- c(71, 48, 68, 65, 43, 104, 86, 70,
+          25, 45, 40, 60, 80, 25, 55, 76)
+
+# Ajuste do modelo saturado.
+m0 <- lm(y ~ blc + A * B * C * D, data = da)
+
+# O efeito `A:B:C:D` não foi estimado pois tem um `NA` no lugar.
+coef(m0)
+
+# Cria um tabela com nomes e valores das estimativas.
+cfs <- coef(m0)[-(1:2)] %>%
+    na.omit() %>%
+    enframe()
+
+# Gráfico quantil-quantil normal das estimativas.
+qq <- qqnorm(cfs$value, pch = 19, col = "orange")
+text(x = qq$x,
+     y = qq$y,
+     labels = cfs$name,
+     pos = ifelse(qq$x < 0, 4, 2))
+
+# Modelo reduzido.
+m1 <- lm(y ~ blc + A * (C + D), data = da)
+anova(m1)
+
+#
+```
