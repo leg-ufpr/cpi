@@ -162,6 +162,7 @@ da$y <- c(71, 48, 68, 65, 43, 104, 86, 70,
           25, 45, 40, 60, 80, 25, 55, 76)
 
 # Ajuste do modelo saturado.
+m0 <- lm(terms(y ~ A * B * C * D + blc, keep.order = TRUE), data = da)
 m0 <- lm(y ~ blc + A * B * C * D, data = da)
 
 # O efeito `A:B:C:D` não foi estimado pois tem um `NA` no lugar.
@@ -182,6 +183,26 @@ text(x = qq$x,
 # Modelo reduzido.
 m1 <- lm(y ~ blc + A * (C + D), data = da)
 anova(m1)
+
+#
+```
+
+```{r}
+da <- expand.grid(A = c(-1, 1),
+                  B = c(-1, 1),
+                  C = c(-1, 1),
+                  blc = gl(2, 1),
+                  rpt = gl(2, 1))
+
+da
+
+da$y <- rnorm(nrow(da))
+
+m0 <- lm(y ~ rpt/blc + A * B * C, data = da)
+anova(m0)
+coef(m0)
+
+summary(m0)
 
 #
 ```
