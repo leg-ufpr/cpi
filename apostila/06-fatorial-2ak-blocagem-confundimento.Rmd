@@ -136,11 +136,14 @@ bloco 2. Veja que esta atribuição é idêntica àquela realizada ao se
 utilizar a coluna ABC da tabela de sinais. **O contraste de definição é
 apenas uma generalização** daquele método.
 
-## TODO FIXME
+## Análise do fatorial 2^4^ em 2 blocos
 
 ```{r, message = FALSE}
 library(tidyverse)
 ```
+
+Análise dos dados disponíveis no exemplo 7.2, página 310, em
+@montgomery2012design.
 
 ```{r}
 # Criando um experimento 2^4 em dois blocos usando I = ABCD.
@@ -151,7 +154,8 @@ da <- do.call(expand.grid,
 
 # Cria os blocos usando I = ABCD.
 da$blc <- with(da,
-               factor(A * B * C * D, labels = c("II", "I")))
+               factor(A * B * C * D,
+                      labels = c("II", "I")))
 
 # Ordena para ficar com a mesma disposição do livro.
 da <- da[with(da, order(blc)), ]
@@ -162,11 +166,20 @@ da$y <- c(71, 48, 68, 65, 43, 104, 86, 70,
           25, 45, 40, 60, 80, 25, 55, 76)
 
 # Ajuste do modelo saturado.
-m0 <- lm(terms(y ~ A * B * C * D + blc, keep.order = TRUE), data = da)
-m0 <- lm(y ~ blc + A * B * C * D, data = da)
+# m0 <- lm(terms(y ~ A * B * C * D + blc, keep.order = TRUE), data = da)
+m0 <- lm(y ~ blc + A * B * C * D,
+         data = da,
+         contrasts = list(blc = contr.sum))
 
 # O efeito `A:B:C:D` não foi estimado pois tem um `NA` no lugar.
 coef(m0)
+
+# A coluna 2 e a última são linearmente dependentes (= confundimento). E
+# o confundimento acontece não importando o tipo de contraste usado.
+X <- model.matrix(m0)
+prmatrix(model.matrix(m0),
+         rowlab = rep("", nrow(X)),
+         collab = rep("", ncol(X)))
 
 # Cria um tabela com nomes e valores das estimativas.
 cfs <- coef(m0)[-(1:2)] %>%
@@ -184,25 +197,161 @@ text(x = qq$x,
 m1 <- lm(y ~ blc + A * (C + D), data = da)
 anova(m1)
 
-#
+# Predição em cada bloco.
+predict(m1, newdata = list(blc = "I", A = 1, C = 1, D = 1))
+predict(m1, newdata = list(blc = "II", A = 1, C = 1, D = 1))
+
+# Entenda o significado do efeito de bloco na codificação soma 0 com 2
+# blocos.
+coef(m0)["blc1"] * 2
+
 ```
+
+## Análise do fatorial 2^5^ em 4 blocos
+
+Análise dos dados disponíveis no problema 6-26, página 310, em
+@montgomery2012design.
+
+An experiment was run in a semiconductor fabrication plant in an effort
+to increase yield. Five factors, each at two levels, were studied. The
+factors (and levels) were A aperture setting (small, large), B exposure
+time (20% below nominal, 20% above nominal), C development time (30 and
+45 s), D mask dimension (small, large), and E etch time (14.5 and 15.5
+min). The unreplicated 2 raised to 5 design shown below was run.
+
+Um experimento foi realizado em uma planta de fabricação de
+semicondutores para aumentar o rendimento. Cinco fatores, cada um em
+dois níveis, foram estudados. Os fatores (e níveis) foram configuração
+da abertura (A: pequena, grande), tempo de exposição (B: 20% abaixo da
+nominal, 20% acima da nominal), tempo de desenvolvimento (C: 30 e 45 s),
+dimensão da máscara (D: pequena, grande), e tempo de gravação (E: 14,5 e
+15,5 min). O planejamento fatorial $2^5$ não replicado foi executado em
+4 blocos, usando para o confundimento os efeitos ACDE e BCD.
 
 ```{r}
-da <- expand.grid(A = c(-1, 1),
-                  B = c(-1, 1),
-                  C = c(-1, 1),
-                  blc = gl(2, 1),
-                  rpt = gl(2, 1))
+# Criando um experimento 2^5 não replicado.
+k <- 5
+da <- do.call(expand.grid,
+              setNames(replicate(k, c(-1, 1), simplify = FALSE),
+                       LETTERS[1:k]))
+attr(da, "out.attrs") <- NULL
 
-da
+# Atribuindo os blocos às corridas.
+blc <- factor(with(da, interaction(A * C * D * E, B * C * D)),
+              labels = as.character(as.roman(1:4)))
 
-da$y <- rnorm(nrow(da))
+# Valores observados.
+da$y <- c(7, 9, 34, 55, 16, 20, 40, 60, 8, 10, 32, 50, 18, 21, 44, 61,
+          8, 12, 35, 52, 15, 22, 45, 65, 6, 10, 30, 53, 15, 20, 41, 63)
 
-m0 <- lm(y ~ rpt/blc + A * B * C, data = da)
-anova(m0)
+m0 <- lm(y ~ blc + A * B * C * D * E, data = da)
+
+# Efeitos não estimados estão com `NA` no lugar.
 coef(m0)
 
+# A coluna 2 e a última são linearmente dependentes (= confundimento). E
+# o confundimento acontece não importando o tipo de contraste usado.
+X <- model.matrix(m0)
+
+# Colunas dos efeitos de blocos e interações com os quais foram
+# confundidos. São mostradas apenas as linhas distintas.
+conf <- c(which(m0$assign == 1),
+          which(is.na(coef(m0))))
+prmatrix(unique(model.matrix(m0)[, conf]),
+         rowlab = rep("", nrow(X)))
+
+# NOTE: Não é mais uma relação um para um. Ou seja, 3 efeitos se
+# confundem com os outros 3 efeitos, mas não em uma relação em que
+# existam pares correspondentes.
+
+# Cria um tabela com nomes e valores das estimativas.
+cfs <- coef(m0)[m0$assign > 1] %>%
+    na.omit() %>%
+    enframe()
+
+# Gráfico quantil-quantil normal das estimativas.
+qq <- qqnorm(cfs$value, pch = 19, col = "orange")
+text(x = qq$x,
+     y = qq$y,
+     labels = cfs$name,
+     pos = ifelse(qq$x < 0, 4, 2))
+
+m1 <- lm(y ~ blc + A + B + C + D + A:B + D:E + B:C, data = da)
+anova(m1)
+
+```
+
+## Confundimento parcial
+
+Análise dos dados disponíveis no exemplo 7.3, página 318, em
+@montgomery2012design.
+
+```{r}
+# Valores digitados conforme disposição na ilustração do livro.
+dat <- c(0, 0, 0, 0, 0, 550,
+         1, 1, 0, 0, 0, 642,
+         1, 0, 1, 0, 0, 749,
+         0, 1, 1, 0, 0, 1075,
+         1, 0, 0, 1, 0, 669,
+         0, 1, 0, 1, 0, 633,
+         0, 0, 1, 1, 0, 1037,
+         1, 1, 1, 1, 0, 729,
+         0, 0, 0, 0, 1, 604,
+         0, 0, 1, 0, 1, 1052,
+         1, 1, 0, 0, 1, 635,
+         1, 1, 1, 0, 1, 860,
+         1, 0, 0, 1, 1, 650,
+         0, 1, 0, 1, 1, 601,
+         1, 0, 1, 1, 1, 868,
+         0, 1, 1, 1, 1, 1063)
+da <- matrix(dat, ncol = 6, byrow = TRUE)
+da <- as.data.frame(da)
+names(da) <- c("A", "B", "C", "blc", "rpt", "y")
+da <- transform(da,
+                A = 2 * (A - 0.5),
+                B = 2 * (B - 0.5),
+                C = 2 * (C - 0.5),
+                blc = factor(blc),
+                rpt = factor(rpt))
+str(da)
+
+# Modelo com efeito de blocos dentro de repetições para um planejamento
+# fatorial 2^3 usando em cada repetição I = ABC e I = AB,
+# respectivamente.
+# m0 <- lm(y ~ rpt/blc + A * B * C, data = da)
+m0 <- lm(terms(y ~ rpt/blc+ A + B + C + A:B + A:C + B:C + A:B:C,
+               keep.order = TRUE),
+         data = da)
+
+# Todos os efeitos foram estimados.
 summary(m0)
 
-#
+# NOTE: todos os efeitos foram estimados, porém, e existe diferença no
+# erro padrão. Como essa informação poder ser aproveitada para o
+# planejamento de experimentos?
+
+# Quando de anova completo.
+anova(m0)
+
+# Determine os efeitos confundidos com bloco em cada repetição
+# inspecionando a matriz do modelo.
+X <- model.matrix(m0)
+prmatrix(model.matrix(m0)[with(da, rpt == "0"), ],
+         rowlab = rep("", nrow(X)))
+prmatrix(model.matrix(m0)[with(da, rpt == "1"), ],
+         rowlab = rep("", nrow(X)))
+
+# Modelo final.
+m1 <- lm(terms(y ~ rpt/blc + A * C, keep.order = TRUE), data = da)
+anova(m1, m0)
+anova(m1)
+
 ```
+
+## Material complementar
+
+  * <http://www.math.montana.edu/jobo/st578/sec4b.pdf>.
+  * <https://dev.stat.vmhost.psu.edu/stat503/book/export/html/663>.
+  * <https://newonlinecourses.science.psu.edu/stat503/node/39/>.
+  * <https://www.stat.purdue.edu/~bacraig/notes1/topic24.pdf>.
+  * <http://isdl.cau.ac.kr/education.data/complex.sys/5.DOE3.pdf>.
