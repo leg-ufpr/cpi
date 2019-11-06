@@ -63,6 +63,28 @@ output:
   * 1 trabalho: 18/11 a 29/11 de 2019.
   * Exame final: Terça 11 de Dezembro de 2019.
 
+# Trabalho
+
+Os temas são:
+
+  1. O método da inclinação ascente.
+     * Box & Draper, capítulo 6.
+     * <https://pure.uvt.nl/ws/portalfiles/portal/1579644/2014-013.pdf>.
+  2. Ajuste de modelos de segunda ordem.
+     * Box & Draper, capítulo 7.
+     * <https://ink.library.smu.edu.sg/cgi/viewcontent.cgi?article=3672&context=sis_research>.
+     * <http://dergiler.ankara.edu.tr/dergiler/15/1283/14837.pdf>.
+  3. Delineamentos ótimos.
+     * Box & Draper, capítulo 14.
+     * <https://pdf.sciencedirectassets.com/271628/1-s2.0-S0378375800X01243/1-s2.0-037837589090003D/main.pdf>.
+     * <http://www.mucm.ac.uk/Pages/Downloads/Internal%20Reports/INT3.1%20NY%20Optimal%20Experimental%20Design.pdf>.
+  4. Aspectos práticos para escolha do delineamento.
+     * Box & Draper, capítulo 15.
+  5. Análise de experimentos de mistura.
+     * Box & Draper, capítulo 16.
+     * <https://support.sas.com/resources/papers/proceedings/proceedings/sugi30/209-30.pdf>.
+     * <https://lstat.kuleuven.be/research/lsd/lsd2014/EddieSchrevensThursday4Dec2014.pdf>.
+
 \*Datas e avalições sujeitas a alteração conforme andamento do curso.
 
 # Referências bibliográficas
